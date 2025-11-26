@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CivilsKash v0.12 - Ultimate</title>
+    <meta name="theme-color" content="#18181b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <style>
+        /* =========================================
+           1. DESIGN TOKENS & THEME ENGINE
+           ========================================= */
+        :root {
+            --primary: #2dd4bf;       
+            --primary-dim: rgba(45, 212, 191, 0.15);
+            --accent-gold: #fbbf24;   
+            --red: #f43f5e;           
+            --green: #10b981;         
+            --orange: #f97316;
+            --blue: #3b82f6;
+            --font-ui: 'Outfit', sans-serif;
+            --font-read: 'Merriweather', serif;
+            --header-h: 64px;
+            --card-radius: 24px;
+            --max-width: 1200px;
+            --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-spring: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* DARK THEME */
+        :root[data-theme="dark"] {
+            --bg-body: #09090b;       
+            --bg-card: #18181b;       
+            --bg-modal: #18181b;
+            --bg-overlay: #09090b;
+            --text-main: #f4f4f5;     
+            --text-muted: #a1a1aa;    
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --bg-glass: rgba(9, 9, 11, 0.85);
+            --shadow-soft: 0 4px 20px rgba(0,0,0,0.5);
+            --shadow-hover: 0 10px 30px rgba(0,0,0,0.6);
+            --highlight-bg: rgba(45, 212, 191, 0.15);
+            --cloze-bg: rgba(255, 255, 255, 0.1);
+            --cloze-border: #52525b;
+            --quiz-bg: #121214;
+            --quiz-mask: #27272a;
+            --gradient-text-card: radial-gradient(circle at 0% 100%, #1e1b4b 0%, #18181b 50%), 
+                                  radial-gradient(circle at 100% 0%, #0f766e 0%, #18181b 50%);
+            --scroll-track: #27272a;
+            --scroll-thumb: #52525b;
+            --chip-bg: #27272a;
+            --chip-active: #2dd4bf;
+            --chip-active-text: #000;
+        }
+
+        /* LIGHT THEME */
+        :root[data-theme="light"] {
+            --bg-body: #f0fdfa;       
+            --bg-card: #ffffff;
+            --bg-modal: #ffffff;
+            --bg-overlay: #f0fdfa;
+            --text-main: #1e293b;     
+            --text-muted: #64748b;    
+            --border-glass: rgba(0, 0, 0, 0.06);
+            --bg-glass: rgba(255, 255, 255, 0.9);
+            --shadow-soft: 0 10px 30px rgba(0,0,0,0.05);
+            --shadow-hover: 0 15px 40px rgba(0,0,0,0.1);
+            --highlight-bg: rgba(45, 212, 191, 0.25);
+            --cloze-bg: rgba(0, 0, 0, 0.05);
+            --cloze-border: #cbd5e1;
+            --quiz-bg: #f8fafc;
+            --quiz-mask: #e2e8f0;
+            --gradient-text-card: radial-gradient(circle at 0% 100%, #e0f2fe 0%, #ffffff 60%), 
+                                  radial-gradient(circle at 100% 0%, #f0fdfa 0%, #ffffff 60%);
+            --scroll-track: #e2e8f0;
+            --scroll-thumb: #94a3b8;
+            --chip-bg: #e2e8f0;
+            --chip-active: #2dd4bf;
+            --chip-active-text: #000;
+        }
+
+        /* =========================================
+           2. BASE & UTILITY
+           ========================================= */
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; outline: none; }
+        
+        body { 
+            font-family: var(--font-ui); 
+            background: var(--bg-body); 
+            color: var(--text-main); 
+            height: 100vh; 
+            overflow: hidden; 
+            transition: background var(--transition-smooth), color var(--transition-smooth); 
+        }
+
+        /* Smooth Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { 
+            background: var(--scroll-thumb); 
+            border-radius: 10px; border: 2px solid transparent; background-clip: content-box; 
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+        
+        /* Noise Texture for that "Premium" feel */
+        body::before {
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 9999; opacity: 0.5; mix-blend-mode: overlay;
+        }
+
+        /* =========================================
+           3. LOADER & ERROR SCREEN (The Safety Net)
+           ========================================= */
+        #startup-loader {
+            position: fixed; inset: 0; background: var(--bg-body); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        .loader-spinner {
+            width: 50px; height: 50px; border: 4px solid var(--border-glass);
+            border-top: 4px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #debug-console {
+            display: none; width: 90%; max-width: 600px; max-height: 300px; overflow-y: auto;
+            background: rgba(255, 0, 0, 0.1); border: 1px solid var(--red); color: var(--red);
+            padding: 15px; border-radius: 12px; font-family: monospace; font-size: 0.8rem;
+            margin-top: 20px; text-align: left;
+        }
+
+        /* =========================================
+           4. HEADER
+           ========================================= */
+        header {
+            position: fixed; top: 0; left: 0; width: 100%; height: var(--header-h); z-index: 100;
+            background: var(--bg-glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass); 
+            display: flex; justify-content: space-between; align-items: center; padding: 0 24px;
+        }
+
+        .brand { 
+            font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px; cursor: pointer;
+            background: linear-gradient(135deg, var(--text-main) 0%, var(--text-muted) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand span { color: var(--primary); -webkit-text-fill-color: var(--primary); }
+
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+
+        .icon-btn {
+            background: transparent; border: none; cursor: pointer; padding: 10px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; 
+            color: var(--text-muted); transition: var(--transition-smooth); position: relative;
+        }
+        .icon-btn:hover { background: var(--border-glass); color: var(--text-main); transform: scale(1.05); }
+        .icon-btn:active { transform: scale(0.95); }
+        .icon-btn.active-state { color: var(--primary); background: var(--highlight-bg); }
+        .icon-btn.liked svg { fill: var(--red); stroke: var(--red); }
+        .icon-btn svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; }
+        
+        .badge-dot {
+            position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; 
+            background: var(--primary); border-radius: 50%; display: none;
+        }
+        /* Info about note export */
+        .info-icon-btn {
+            color: var(--primary); 
+            opacity: 0.8; 
+            transition: all 0.2s ease;
+        }
+        .info-icon-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        .tutorial-list li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+        .tutorial-highlight {
+            color: var(--primary);
+            font-weight: 700;
+        }
+        #modal-notekash-tutorial {
+            z-index: 300 !important; /* Higher than settings (200) */
+        }
+
+        /* =========================================
+           5. MAIN FEED & CARDS
+           ========================================= */
+        #app-container { height: 100%; width: 100%; overflow-y: auto; scroll-behavior: smooth; padding-top: var(--header-h); }
+
+        @media (min-width: 769px) {
+            #feed-list { 
+                display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); 
+                gap: 40px; padding: 40px; max-width: var(--max-width); margin: 0 auto; 
+            }
+            .news-card { 
+                height: 650px; 
+                border-radius: var(--card-radius); border: 1px solid var(--border-glass); 
+                box-shadow: var(--shadow-soft); overflow: hidden;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #app-container { scroll-snap-type: y mandatory; padding-top: 0; height: 100vh; }
+            
+            header { 
+                background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+                backdrop-filter: none; border: none; pointer-events: none;
+                height: auto; padding-top: 2px; align-items: center; 
+            }
+            header > * { pointer-events: auto; }
+
+            .brand { -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+            .icon-btn { color: rgba(255,255,255,0.9); }
+            
+            .news-card { 
+                height: 100vh; width: 100%; 
+                scroll-snap-align: start; scroll-snap-stop: always; 
+                border-radius: 0; border: none;
+            }
+            .card-img { background-position: center top !important; }
+        }
+
+        .news-card { 
+            background: var(--bg-card); position: relative; 
+            display: flex; flex-direction: column; transition: transform 0.3s ease;
+        }
+        
+        .scroll-content {
+            flex: 1; overflow-y: auto;
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        .card-img { 
+            height: 40vh; min-height: 250px; flex-shrink: 0; 
+            background-size: cover; background-position: center; position: relative; 
+        }
+      
+        .card-img::after { 
+            content: ''; position: absolute; inset: 0; 
+            background: linear-gradient(to top, var(--bg-card) 0%, transparent 10%); 
+        }
+
+        .spin-active { animation: spin 1s linear infinite; color: var(--primary) !important; }
+
+        .card-body { padding: 24px; position: relative; z-index: 2; }
+
+        .news-card.text-only .scroll-content { background: var(--gradient-text-card); }
+        .news-card.text-only .card-img { display: none; }
+        .news-card.text-only .card-body { padding-top: 80px; min-height: 100%; display:flex; flex-direction:column; justify-content:center;}
+        .news-card.text-only h2 { font-size: 2.2rem; }
+
+        .meta-row {  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; opacity: 0.9; }
+        .badge { 
+            background: var(--primary); color: #000; padding: 4px 10px; 
+            border-radius: 6px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;
+        }
+        .date { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        h2 { 
+            font-size: 1.6rem; font-weight: 800; line-height: 1.3; 
+            margin-bottom: 16px; font-family: var(--font-ui); letter-spacing: -0.02em;
+        }
+        .summary-box { 
+            font-family: var(--font-read); font-size: 1.15rem; line-height: 1.75; 
+            color: var(--text-muted); margin-bottom: 24px; 
+        }
+
+        /* Cloze Deletion / Keywords */
+        .keyword {
+            background: var(--highlight-bg); color: var(--primary); 
+            padding: 2px 4px; border-radius: 4px; font-weight: 600; cursor: pointer;
+            border-bottom: 1px dashed var(--primary); transition: all 0.3s ease;
+            user-select: none;
+        }
+        .keyword.is-hidden {
+            background: var(--cloze-bg); color: transparent; 
+            border-bottom: 2px solid var(--cloze-border); 
+        }
+        .keyword.is-hidden:hover { border-color: var(--primary); }
+
+        .card-footer { 
+            padding: 16px 24px;
+            display: flex; justify-content: flex-end; gap: 12px; align-items: center; 
+            border-top: 1px solid var(--border-glass); 
+            background: var(--bg-card); z-index: 10;
+        }
+
+        /* =========================================
+           6. 3D QUIZ SYSTEM (The Core Feature)
+           ========================================= */
+        #quiz-fullscreen-layer {
+            position: fixed; inset: 0; z-index: 2000;
+            background: var(--bg-overlay);
+            display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.4s ease;
+            padding-top: 10px;
+        }
+        #quiz-fullscreen-layer.active { opacity: 1; pointer-events: auto; }
+
+        .quiz-navbar {
+            padding: 10px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            max-width: 800px; width: 100%; margin: 0 auto;
+            flex-shrink: 0;
+        }
+
+        .quiz-progress-track {
+            flex: 1; height: 6px; background: var(--border-glass);
+            border-radius: 10px; margin: 0 20px; overflow: hidden;
+        }
+        .quiz-progress-fill {
+            height: 100%; background: var(--primary); width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .quiz-stage {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 20px; perspective: 1500px; /* Essential for 3D flip */
+            overflow: hidden; 
+        }
+
+        .quiz-card-wrapper {
+            width: 100%; max-width: 600px; 
+            height: 100%; max-height: 75vh; min-height: 400px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 20px;
+        }
+        .quiz-card-wrapper.is-flipped { transform: rotateY(180deg); }
+
+        .quiz-face {
+            position: absolute; inset: 0;
+            -webkit-backface-visibility: hidden; backface-visibility: hidden;
+            background: var(--bg-card);
+            border-radius: 32px;
+            border: 1px solid var(--border-glass);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .quiz-back { transform: rotateY(180deg); }
+
+        .quiz-scroll-area {
+            flex: 1; overflow-y: auto; padding: 40px;
+            display: flex; flex-direction: column;
+        }
+        
+        .quiz-question-text {
+            font-family: var(--font-read); font-size: 1.5rem; line-height: 1.8;
+            color: var(--text-main); text-align: left;
+            margin-top: auto; margin-bottom: auto; padding-top: 10px;
+        }
+
+        .quiz-actions-area {
+            padding: 24px; border-top: 1px solid var(--border-glass);
+            background: var(--bg-card);
+            flex-shrink: 0;
+        }
+
+        .quiz-mask {
+            background: var(--quiz-mask); color: transparent;
+            border-radius: 6px; padding: 2px 10px; margin: 0 4px;
+            display: inline-block; border: 1px dashed var(--text-muted);
+            vertical-align: middle; min-width: 60px; position: relative;
+        }
+        .quiz-mask::after {
+            content: '?'; color: var(--text-muted);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-weight: 700;
+        }
+        .quiz-revealed {
+            color: var(--primary); font-weight: 800;
+            background: var(--highlight-bg); padding: 2px 8px; border-radius: 4px;
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* SRS Buttons */
+        .srs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .srs-btn {
+            padding: 12px; border-radius: 12px; border: none; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            transition: transform 0.2s; background: var(--bg-body); border: 1px solid var(--border-glass);
+            color: var(--text-main);
+        }
+        .srs-btn:hover { transform: translateY(-3px); background: var(--border-glass); }
+        .srs-btn span:first-child { font-weight: 700; font-size: 0.9rem; }
+        .srs-btn span:last-child { font-size: 0.7rem; color: var(--text-muted); }
+        
+        .srs-again { border-bottom: 3px solid var(--red); }
+        .srs-hard { border-bottom: 3px solid var(--orange); }
+        .srs-good { border-bottom: 3px solid var(--blue); }
+        .srs-easy { border-bottom: 3px solid var(--green); }
+
+        #quiz-summary {
+            position: absolute; inset: 0; background: var(--bg-overlay); z-index: 5;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            animation: fadeIn 0.5s;
+        }
+        #quiz-summary.visible { display: flex; }
+
+        /* =========================================
+           7. MODALS, CHIPS & SETTINGS
+           ========================================= */
+        .modal-backdrop { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; 
+            display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px);
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-backdrop.visible { opacity: 1; }
+        
+        .modal-card { 
+            background: var(--bg-modal); width: 90%; max-width: 450px; border-radius: 24px; 
+            padding: 30px; border: 1px solid var(--border-glass); box-shadow: var(--shadow-hover); 
+            transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-backdrop.visible .modal-card { transform: translateY(0); }
+
+        .setting-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 0; border-bottom: 1px solid var(--border-glass);
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label { font-weight: 600; font-size: 1rem; }
+        .setting-sub { font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 4px; }
+        
+        select {
+            background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-glass);
+            padding: 8px 12px; border-radius: 8px; font-family: var(--font-ui); outline: none;
+        }
+
+        /* Chips / Categories */
+        .chip-container {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;
+        }
+        .chip {
+            padding: 8px 16px; border-radius: 20px; background: var(--chip-bg);
+            color: var(--text-muted); font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            border: 1px solid transparent; transition: var(--transition-smooth);
+        }
+        .chip:hover { background: var(--border-glass); color: var(--text-main); }
+        .chip.active {
+            background: var(--chip-active); color: var(--chip-active-text);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+        }
+
+        /* Buttons */
+        .btn-large {
+            width: 100%; padding: 16px; border-radius: 16px; border: none;
+            font-weight: 700; cursor: pointer; font-size: 1rem;
+            transition: var(--transition-spring);
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-primary { background: var(--primary); color: #000; box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(45, 212, 191, 0.4); }
+        .btn-outline { background: transparent; border: 1px solid var(--border-glass); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg-glass); border-color: var(--primary); }
+        .btn-small { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; cursor: pointer; }
+
+        /* Toast */
+        #toast { 
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px); 
+            background: var(--text-main); color: var(--bg-body); padding: 12px 24px; 
+            border-radius: 50px; font-weight: 700; opacity: 0; pointer-events: none; 
+            transition: var(--transition-spring); z-index: 3000; 
+            box-shadow: var(--shadow-soft); white-space: nowrap;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Micro-Interactions */
+        .loading-spinner {
+            width: 20px; height: 20px; border: 3px solid var(--border-glass);
+            border-top: 3px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; display: none;
+        }
+
+    </style>
+</head>
+<body class="theme-dark">
+
+    <div id="startup-loader">
+        <div class="loader-spinner"></div>
+        <div style="font-weight: 800; letter-spacing: 1px; margin-bottom: 10px;">CIVILSKASH</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">Initializing Engine...</div>
+        <div id="debug-console"></div>
+    </div>
+
+    <header>
+        <div class="brand" onclick="App.Actions.goHome()">Civils<span>Kash</span></div>
+        <div class="header-actions">
+            <button class="icon-btn" id="sync-btn" onclick="App.Actions.triggerSync()" title="Check for Updates">
+                <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+            <button class="icon-btn" id="category-btn" onclick="App.UI.openModal('modal-categories')" title="Filter Categories">
+                <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                <span class="badge-dot" id="category-active-badge"></span>
+            </button>
+            
+            <button class="icon-btn" id="bookmarks-btn" onclick="App.Actions.toggleBookmarksFilter()" title="Show Bookmarks Only">
+                <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+            </button>
+            
+            <button class="icon-btn" id="global-hide-btn" onclick="App.Actions.toggleGlobalHide()" title="Toggle Keywords">
+                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            
+            <button class="icon-btn" onclick="App.UI.openModal('modal-quiz-menu')" title="Practice & Quiz">
+                <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+            </button>
+            
+            <button class="icon-btn" onclick="App.UI.openModal('modal-settings')" title="Settings">
+                <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <div id="app-container">
+        <div id="feed-list"></div>
+    </div>
+
+    <div id="modal-categories" class="modal-backdrop">
+        <div class="modal-card">
+            <h2 style="margin-bottom:10px;">Filter Topics</h2>
+            <p style="color:var(--text-muted); font-size:0.9rem;">Select a category to focus your study.</p>
+            <div class="chip-container" id="category-chips-container"></div>
+            <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:20px;">Done</button>
+        </div>
+    </div>
+
+    <div id="modal-quiz-menu" class="modal-backdrop">
+        <div class="modal-card">
+            <h2 style="margin-bottom:10px; font-weight:800; font-size:1.8rem;">Revision Zone 🧠</h2>
+            <p style="color:var(--text-muted); margin-bottom:24px;">Generate tests based on performance.</p>
+            
+            <button class="btn-large btn-outline" onclick="App.Quiz.startPractice()" style="margin-bottom:12px;">
+                <div style="text-align:left; flex:1;">
+                    <div>Practice Mode</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">Review filtered cards</div>
+                </div>
+                <span>📖</span>
+            </button>
+            
+            <button class="btn-large btn-primary" onclick="App.Quiz.startTest()">
+                <div style="text-align:left; flex:1;">
+                    <div>Daily Mastery</div>
+                    <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">4 New, 3 Again, 2 Hard, 1 Revision</div>
+                </div>
+                <span>🏆</span>
+            </button>
+            <button class="icon-btn" onclick="App.UI.closeModals()" style="position:absolute; top:20px; right:20px;">✕</button>
+        </div>
+    </div>
+
+    <div id="quiz-fullscreen-layer">
+        <div class="quiz-navbar">
+            <div style="font-weight:800; font-size:0.9rem; letter-spacing:1px;" id="quiz-header-label">DAILY TEST</div>
+            <div class="quiz-progress-track">
+                <div class="quiz-progress-fill" id="quiz-progress-bar"></div>
+            </div>
+            <button class="icon-btn" onclick="App.Quiz.exit()" title="Exit Quiz">✕</button>
+        </div>
+
+        <div class="quiz-stage">
+            <div class="quiz-card-wrapper" id="quiz-card-wrapper">
+                <div class="quiz-face quiz-front">
+                    <div class="quiz-scroll-area">
+                        <div class="quiz-question-text" id="fc-front-text">Loading...</div>
+                    </div>
+                    <div class="quiz-actions-area">
+                        <button class="btn-large btn-primary" onclick="App.Quiz.flip()">Show Answer</button>
+                    </div>
+                </div>
+                <div class="quiz-face quiz-back">
+                    <div class="quiz-scroll-area">
+                        <div class="quiz-question-text" id="fc-back-text">Answer...</div>
+                    </div>
+                    <div class="quiz-actions-area" id="quiz-back-controls">
+                        </div>
+                </div>
+            </div>
+            
+            <div id="quiz-summary">
+                <h1 style="font-size:3rem; margin-bottom:10px;">🎉</h1>
+                <h2 style="font-size:2rem; font-weight:800; margin-bottom:10px;">Test Complete!</h2>
+                <h3 style="font-size:2.5rem; color:var(--primary); margin-bottom:10px;" id="quiz-final-score">0 / 10</h3>
+                <p style="color:var(--text-muted); margin-bottom:30px;" id="quiz-summary-text">Good effort!</p>
+                <button class="btn-large btn-primary" style="max-width:200px;" onclick="App.Quiz.exit()">Back to Feed</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-notekash-tutorial" class="modal-backdrop">
+        <div class="modal-card">
+            <h2 style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+                <span>🚀</span> Power Up with NoteKash
+            </h2>
+            
+            <p style="margin-bottom:20px; font-size:0.95rem; line-height:1.6;">
+                Transfer your current feeds, flashcards, and bookmarks directly into the main <b>NoteKash App</b> to enable advanced study features.
+            </p>
+
+            <div style="background:var(--bg-body); padding:15px; border-radius:12px; border:1px solid var(--border-glass); margin-bottom:20px;">
+                <ul class="tutorial-list" style="padding-left:20px; margin:0;">
+                    <li><b>1. Export:</b> Click the "Export" button in Settings to save a <span class="tutorial-highlight">.notekash</span> file.</li>
+                    <li><b>2. Open NoteKash:</b> Go to Settings > Storage & Sync.</li>
+                    <li><b>3. Import:</b> Select "Import Backup" and choose this file.</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom:20px; padding:12px; background:rgba(45, 212, 191, 0.1); border-radius:12px; border-left:4px solid var(--primary);">
+                <strong style="color:var(--primary);">🔥 Why do this?</strong><br>
+                <span style="font-size:0.9rem; opacity:0.9;">Your extracted flashcards are automatically injected into NoteKash's <b style="color:var(--text-main)">Advanced SRS Algorithm</b> (Spaced Repetition) ensuring you never forget a concept.</span>
+            </div>
+
+            <button class="btn-large btn-primary" onclick="window.open('https://notekash.com', '_blank')">Go to NoteKash</button>
+            <button class="btn-large btn-outline" onclick="document.getElementById('modal-notekash-tutorial').classList.remove('visible'); setTimeout(() => document.getElementById('modal-notekash-tutorial').style.display = 'none', 300);" style="margin-top:10px;">Close</button>
+        </div>
+</div>
+    <div id="modal-settings" class="modal-backdrop">
+        <div class="modal-card">
+            <h2 style="margin-bottom:20px;">Settings</h2>
+            
+            <div class="setting-row">
+                <span class="setting-label">Theme</span>
+                <button class="icon-btn" onclick="App.Actions.toggleTheme()" id="theme-toggle-btn">
+                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <span class="setting-label">Update Content</span>
+                    <span class="setting-sub">Fetch latest code and notes</span>
+                </div>
+                <button class="btn-small btn-outline" onclick="App.Data.forceUpdate()">
+                    <span id="update-btn-text">Check Updates</span>
+                    <div class="loading-spinner" id="update-spinner"></div>
+                </button>
+            </div>
+
+            <div class="setting-row">
+                <div style="display:flex; flex-direction:column; width:100%;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                        <span class="setting-label">Export to NoteKash App</span>
+                        <button class="icon-btn info-icon-btn" onclick="App.UI.openModal('modal-notekash-tutorial')" style="width:20px; height:20px; padding:0;" title="How to use this?">
+                            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                    </div>
+                    <span class="setting-sub">Save your progress for the NoteKash ecosystem</span>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <select id="export-category-select" style="flex:1;">
+                    <option value="all">All Categories</option>
+                    <option value="bookmarks">Bookmarked Only</option>
+                </select>
+                <button class="btn-primary" style="padding:8px 16px; border-radius:8px; border:none; font-weight:700; cursor:pointer;" onclick="App.Export.download()">Export</button>
+            </div>
+
+            <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:20px;">Close</button>
+        </div>
+    </div>
+
+    <div id="toast">Notification</div>
+
+    <script>
+        /**
+         * CivilsKash v0.12 - Ultimate Edition
+         * "No Shortcuts" Architecture:
+         * 1. Global Error Handling (Safety)
+         * 2. IndexedDB with Memory Fallback (Reliability)
+         * 3. Full 3D Quiz Engine (Mastery)
+         * 4. External Data Sync (Connectivity)
+         */
+
+        // 1. GLOBAL SAFETY NET
+        window.onerror = function(msg, url, line) {
+            const el = document.getElementById('debug-console');
+            el.style.display = 'block';
+            el.innerText += `[Error] ${msg} (Line ${line})\n`;
+            // Keep loader visible so user sees error
+            return false;
+        };
+
+        const App = {
+            // --- DATABASE LAYER (Robust) ---
+            DB: {
+                dbName: 'CivilsKashDB',
+                version: 3,
+                db: null,
+                isWorking: true, // Flag if DB is active
+                async init() {
+                    return new Promise((resolve) => {
+                        // Check if IDB exists
+                        if (!window.indexedDB) { 
+                            console.warn("IDB not supported"); 
+                            this.isWorking = false; 
+                            return resolve(); 
+                        }
+                        
+                        try {
+                            const request = indexedDB.open(this.dbName, this.version);
+                            request.onupgradeneeded = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
+                            if (!db.objectStoreNames.contains('bookmarks')) db.createObjectStore('bookmarks');
+                            if (!db.objectStoreNames.contains('srs_data')) db.createObjectStore('srs_data', { keyPath: 'id' });
+                            if (!db.objectStoreNames.contains('feed_cache')) db.createObjectStore('feed_cache', { keyPath: 'id' });
+                        };
+                            request.onsuccess = (e) => { 
+                                this.db = e.target.result; 
+                                resolve(); 
+                            };
+                            request.onerror = (e) => {
+                                console.warn("IDB Blocked/Error", e);
+                                this.isWorking = false; // Fallback to memory
+                                resolve();
+                            };
+                        } catch (err) {
+                            console.warn("IDB Try-Catch Error", err);
+                            this.isWorking = false;
+                            resolve();
+                        }
+                    });
+                },
+                async get(store, key) {
+                    if (!this.isWorking || !this.db) return null; // Fallback
+                    return new Promise(resolve => {
+                        try {
+                            const tx = this.db.transaction(store, 'readonly');
+                            const req = tx.objectStore(store).get(key);
+                            req.onsuccess = () => resolve(req.result);
+                            req.onerror = () => resolve(null);
+                        } catch(e) { resolve(null); }
+                    });
+                },
+                async put(store, key, value) {
+                    if (!this.isWorking || !this.db) return;
+                    try {
+                        const tx = this.db.transaction(store, 'readwrite');
+                        if (key) tx.objectStore(store).put(value, key);
+                        else tx.objectStore(store).put(value);
+                    } catch(e) { console.error("Put Failed", e); }
+                },
+                async getAll(store) {
+                    if (!this.isWorking || !this.db) return [];
+                    return new Promise(resolve => {
+                        try {
+                            const tx = this.db.transaction(store, 'readonly');
+                            const req = tx.objectStore(store).getAll();
+                            req.onsuccess = () => resolve(req.result);
+                            req.onerror = () => resolve([]);
+                        } catch(e) { resolve([]); }
+                    });
+                }
+            },
+
+            // --- STATE MANAGEMENT ---
+            State: { 
+                feed: [], 
+                bookmarks: new Set(), 
+                filterBookmarks: false,
+                activeCategory: 'all',
+                srsData: {}, 
+                isDark: true, 
+                isGlobalHide: false,
+                quiz: { mode: null, deck: [], index: 0, currentScore: 0 },
+                contentUrl: 'https://script.google.com/macros/s/AKfycbyts9Lf6r37UUGkCNTlqMhb-YhdpOrrC4JRxVWpQ4uM0QxZzUMvNl0MMzumltlMd-8N/exec'
+            },
+
+            Icons: {
+                eyeOpen: `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`,
+                eyeClosed: `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>`
+            },
+
+            // --- DATA ENGINE (Fetch + Hardcoded) ---
+            Data: {
+                async loadLocal() {
+                    const hardcoded = this.getHardcodedData();
+                    const cached = await App.DB.getAll('feed_cache');
+                    
+                    const feedMap = new Map();
+                    
+                    hardcoded.forEach(item => feedMap.set(item.id, item));
+                    
+                    cached.forEach(item => feedMap.set(item.id, item));
+                    
+                    return Array.from(feedMap.values()).reverse(); 
+                },
+
+                // 2. Network Sync: Fetch -> Save to DB -> Return
+                async syncNetwork() {
+                    if (!App.State.contentUrl) return null;
+
+                    try {
+                        const res = await fetch(App.State.contentUrl);
+                        if (res.ok) {
+                            const cloudData = await res.json();
+                            const normalizedCloud = this.normalize(cloudData); // Don't reverse yet
+                        
+                            const tx = App.DB.db.transaction('feed_cache', 'readwrite');
+                            const store = tx.objectStore('feed_cache');
+                            normalizedCloud.forEach(item => store.put(item));
+                            
+                            return normalizedCloud; // Return fresh data
+                        }
+                    } catch (e) {
+                        console.warn("Background Sync failed (Offline)", e);
+                        return null; // Return null to indicate no update
+                    }
+                },
+
+                getHardcodedData() {
+                    const rawData = [
+                        { 
+                            category: "History", date: "Timeless", 
+                            image: "https://images.travelandleisureasia.com/wp-content/uploads/sites/2/2024/06/18140833/Nalanda-3.jpg", 
+                            title: "The Oldest University in the World", 
+                            summary: "While Oxford and Bologna are old, the ancient university of {{c1::Nalanda}} in India operated from 427 to 1197 CE. It had over {{c2::9 million}} manuscripts and attracted scholars from across Asia before it was destroyed by {{c1::Bakhtiyar Khilji}}, whose army burned the library for three months."
+                        },
+                        { 
+                            category: "Geography", date: "Eternal", 
+                            image: "https://www.kidzherald.com/wp-content/uploads/2023/12/The-Silence-of-Point-Nemo.webp", 
+                            title: "The Loneliest Place on Earth", 
+                            summary: "{{c1::Point Nemo}} is the oceanic pole of inaccessibility. It is so far from land that the closest humans are often the {{c2::astronauts}} on the International Space Station, orbiting 400km above, compared to the nearest inhabited land which is {{c1::2,688 km}} away."
+                        },
+                        { 
+                            category: "Polity", date: "Sovereign", 
+                            title: "World's Longest Constitution", 
+                            summary: "The {{c1::Constitution of India}} is the longest written constitution of any sovereign country. Originally, it had 395 articles and 8 schedules, taking {{c2::2 years, 11 months, and 18 days}} to draft. It was entirely {{c1::handwritten}} and illustrated, not printed."
+                        },
+                        { 
+                            category: "Economy", date: "Fiscal",
+                            title: "The Tulip Mania Bubble", 
+                            summary: "The first recorded economic bubble was {{c1::Tulip Mania}} in the 17th century Netherlands. At its peak, a single tulip bulb sold for more than {{c2::10 times}} the annual income of a skilled craftsworker. It highlights how market {{c1::psychology}} drives valuation over utility."
+                        },
+                        {
+                            category: "Science", date: "Cosmic", image:"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NGC_4414_%28NASA-med%29.jpg/1200px-NGC_4414_%28NASA-med%29.jpg",
+                            title: "The Speed of Nerve Impulses",
+                            summary: "Despite feeling instantaneous, the fastest nerve impulses in the human body travel at about {{c1::120 meters}} per second. However, this is slower than the speed of sound. The brain itself has no {{c2::pain receptors}}, meaning brain surgery can be performed while the patient is {{c1::awake}}."
+                        },
+                        { 
+                            category: "Environment", date: "Vital", 
+                            image: "https://tse4.mm.bing.net/th/id/OIP.D7NAwI2E3AE_pRNyosP_KgHaEv?rs=1&pid=ImgDetMain&o=7&rm=3", 
+                            title: "The Largest Living Structure", 
+                            summary: "The {{c1::Great Barrier Reef}} is the largest living structure on Earth, stretching over 2,300 km. It is the only living thing visible from {{c2::Space}}. Shockingly, it has lost half its coral cover since 1985 due to {{c1::bleaching}} caused by rising ocean temperatures."
+                        }
+                    ];
+                    return this.normalize(rawData);
+                },
+
+                normalize(data) {
+                    return data.map((item, idx) => ({
+                        ...item,
+                        id: item.id || `art_${idx}_${btoa(item.title || 'unk').substring(0,8)}`,
+                        tags: [item.category] 
+                    }));
+                },
+
+                async forceUpdate() {
+                    const btn = document.getElementById('update-btn-text');
+                    const spinner = document.getElementById('update-spinner');
+                    
+                    btn.style.display = 'none';
+                    spinner.style.display = 'block';
+
+                    try {
+                        // 1. Fetch & Store to DB
+                        const freshData = await this.syncNetwork();
+                        
+                        if (freshData) {
+                            // 2. Reload everything from DB + Hardcoded to get clean state
+                            App.State.feed = await this.loadLocal();
+                            App.UI.renderFeed();
+                            App.UI.toast("Updated Successfully");
+                        } else {
+                            App.UI.toast("No changes or Offline");
+                        }
+                    } catch(e) {
+                        App.UI.toast("Update Failed");
+                    } finally {
+                        btn.style.display = 'block';
+                        spinner.style.display = 'none';
+                    }
+                }
+            },
+
+            // --- USER ACTIONS ---
+            Actions: {
+                async toggleTheme() {
+                    App.State.isDark = !App.State.isDark;
+                    document.documentElement.setAttribute('data-theme', App.State.isDark ? 'dark' : 'light');
+                    await App.DB.put('settings', 'theme', App.State.isDark);
+                },
+
+                async toggleBookmark(id) {
+                    const isBookmarked = App.State.bookmarks.has(id);
+                    const newSet = new Set(App.State.bookmarks);
+                    if (isBookmarked) newSet.delete(id); else newSet.add(id);
+                    
+                    App.State.bookmarks = newSet;
+                    await App.DB.put('bookmarks', 'ids', Array.from(newSet));
+                    
+                    const btn = document.getElementById(`like-btn-${id}`);
+                    if(btn) btn.classList.toggle('liked', !isBookmarked);
+                    App.UI.toast(isBookmarked ? "Removed Bookmark" : "Saved ❤️");
+                },
+
+                toggleBookmarksFilter() {
+                    App.State.filterBookmarks = !App.State.filterBookmarks;
+                    const btn = document.getElementById('bookmarks-btn');
+                    if (App.State.filterBookmarks) {
+                        btn.classList.add('active-state');
+                        btn.querySelector('svg').style.fill = 'var(--red)'; 
+                        btn.querySelector('svg').style.stroke = 'var(--red)';
+                        App.UI.toast("Showing Favorites Only");
+                    } else {
+                        btn.classList.remove('active-state');
+                        btn.querySelector('svg').style.fill = 'none';
+                        btn.querySelector('svg').style.stroke = 'currentColor';
+                        App.UI.toast("Showing All");
+                    }
+                    App.UI.renderFeed(); 
+                },
+                async triggerSync() {
+                    const btn = document.getElementById('sync-btn');
+                    btn.classList.add('spin-active'); // Start Animation
+                    App.UI.toast("Checking for updates...");
+                    
+                    await App.Data.forceUpdate();
+                    
+                    setTimeout(() => btn.classList.remove('spin-active'), 2000);
+                },
+                setCategory(cat) {
+                    App.State.activeCategory = cat;
+                    const badge = document.getElementById('category-active-badge');
+                    const btn = document.getElementById('category-btn');
+                    
+                    if (cat !== 'all') {
+                        badge.style.display = 'block';
+                        btn.classList.add('active-state');
+                        App.UI.toast(`Filter: ${cat}`);
+                    } else {
+                        badge.style.display = 'none';
+                        btn.classList.remove('active-state');
+                    }
+                    
+                    App.UI.closeModals();
+                    App.UI.renderFeed();
+                },
+
+                toggleKeyword(el) { el.classList.toggle('is-hidden'); },
+                
+                toggleGlobalHide() {
+                    App.State.isGlobalHide = !App.State.isGlobalHide;
+                    const btn = document.getElementById('global-hide-btn');
+                    btn.innerHTML = App.State.isGlobalHide ? App.Icons.eyeClosed : App.Icons.eyeOpen;
+                    btn.classList.toggle('active-state', App.State.isGlobalHide);
+                    
+                    document.querySelectorAll('.keyword').forEach(k => {
+                        k.classList.toggle('is-hidden', App.State.isGlobalHide);
+                    });
+                    document.querySelectorAll('.local-eye-btn').forEach(b => {
+                        b.innerHTML = App.State.isGlobalHide ? App.Icons.eyeClosed : App.Icons.eyeOpen;
+                    });
+                    App.UI.toast(App.State.isGlobalHide ? "Keywords Hidden" : "Keywords Visible");
+                },
+
+                toggleLocalHide(id) {
+                    const card = document.getElementById(id);
+                    const btn = document.getElementById(`hide-btn-${id}`);
+                    const keywords = card.querySelectorAll('.keyword');
+                    if(keywords.length === 0) return;
+                    const isCurrentlyHidden = keywords[0].classList.contains('is-hidden');
+                    keywords.forEach(k => k.classList.toggle('is-hidden', !isCurrentlyHidden));
+                    btn.innerHTML = isCurrentlyHidden ? App.Icons.eyeOpen : App.Icons.eyeClosed;
+                },
+                
+                goHome() {
+                    App.State.activeCategory = 'all';
+                    App.State.filterBookmarks = false;
+                    document.getElementById('category-active-badge').style.display = 'none';
+                    document.getElementById('category-btn').classList.remove('active-state');
+                    document.getElementById('bookmarks-btn').classList.remove('active-state');
+                    document.getElementById('bookmarks-btn').querySelector('svg').style.fill = 'none';
+                    document.getElementById('app-container').scrollTo(0,0);
+                    App.UI.renderFeed();
+                }
+            },
+
+           // --- EXPORT ENGINE ---
+            Export: {
+                download() {
+                    const filter = document.getElementById('export-category-select').value;
+                    let notesToExport = App.State.feed;
+
+                    if (filter === 'bookmarks') {
+                        notesToExport = notesToExport.filter(n => App.State.bookmarks.has(n.id));
+                    } else if (filter !== 'all') {
+                        notesToExport = notesToExport.filter(n => n.category === filter);
+                    }
+
+                    if (notesToExport.length === 0) return App.UI.toast("No notes to export.");
+
+                    const dateStr = new Date().toISOString().slice(0,10);
+                    let mergedHtml = `<p style="color: #888; font-style: italic;">CivilsKash Export (${notesToExport.length} items)</p><hr style="margin-bottom: 2rem;">`;
+                    
+                    notesToExport.forEach(item => {
+                        mergedHtml += `<blockquote style="margin-bottom: 0.5rem; border-left: 3px solid var(--primary-color);"><strong>${item.category}</strong></blockquote>`;
+                        mergedHtml += `<h3 style="margin-top: 0;">${item.title}</h3>`;
+                        if (item.image) mergedHtml += `<img src="${item.image}" alt="Img" style="max-width: 100%; border-radius: 8px; margin: 10px 0;">`;
+                        mergedHtml += `<p>${item.summary}</p><br><hr style="opacity: 0.3;"><br>`;
+                    });
+                    
+                    const singleNoteObj = {
+                        id: 'art_' + crypto.randomUUID().replace(/-/g, '').substring(0, 12),
+                        title: `CivilsKash Digest (${dateStr})`,
+                        category: (filter === 'all' || filter === 'bookmarks') ? 'General' : filter,
+                        tags: ['CivilsKash', 'Imported'],
+                        content: mergedHtml,
+                        readCount: 0, readHistory: [], flashcards: {}, 
+                        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+                    };
+
+                    const blob = new Blob([JSON.stringify([singleNoteObj], null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `CivilsKash_Export_${dateStr}.notekash`;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                    App.UI.toast(`Exported ${notesToExport.length} items!`);
+                }
+            },
+
+            // --- QUIZ & SRS ENGINE ---
+            Quiz: {
+                getFilteredDeck() {
+                    let items = App.State.feed;
+                    if(App.State.activeCategory !== 'all') items = items.filter(i => i.category === App.State.activeCategory);
+                    if(App.State.filterBookmarks) items = items.filter(i => App.State.bookmarks.has(i.id));
+                    return items;
+                },
+
+                startPractice() {
+                    const deck = this.getFilteredDeck().map(i => this._createCardObj(i));
+                    if(deck.length === 0) return App.UI.toast("No cards match current filters.");
+                    this._initSession('practice', deck);
+                },
+
+                startTest() {
+                    // Weighted Algorithm
+                    const buckets = { new: [], again: [], hard: [], good: [], easy: [] };
+                    App.State.feed.forEach(item => {
+                        const data = App.State.srsData[item.id];
+                        const status = data ? data.status : 'new';
+                        if(buckets[status]) buckets[status].push(item); else buckets.new.push(item);
+                    });
+
+                    let deck = [];
+                    const pull = (source, count) => {
+                        const shuffled = source.sort(() => 0.5 - Math.random());
+                        const taken = shuffled.slice(0, count);
+                        deck.push(...taken);
+                        return count - taken.length;
+                    };
+
+                    let needNew = 4;
+                    needNew += pull(buckets.again, 3);
+                    needNew += pull(buckets.hard, 2);
+                    needNew += pull([...buckets.good, ...buckets.easy], 1);
+                    pull(buckets.new, needNew);
+                    
+                    if (deck.length < 5 && App.State.feed.length > 0) { 
+                        const used = new Set(deck.map(d=>d.id));
+                        deck.push(...App.State.feed.filter(i=>!used.has(i.id)).slice(0, 10 - deck.length));
+                    }
+                    
+                    const finalDeck = deck.slice(0, 10).map(i => this._createCardObj(i)).sort(() => 0.5 - Math.random());
+                    if (finalDeck.length === 0) return App.UI.toast("No cards available.");
+                    this._initSession('test', finalDeck);
+                },
+
+                _createCardObj(item) {
+                    const regex = /\{\{c\d+::(.*?)\}\}/g;
+                    const frontHtml = item.summary.replace(regex, '<span class="quiz-mask"></span>');
+                    const backHtml = item.summary.replace(regex, '<span class="quiz-revealed">$1</span>');
+                    return { id: item.id, front: frontHtml, back: backHtml };
+                },
+
+                _initSession(mode, deck) {
+                    App.State.quiz = { mode, deck, index: 0, currentScore: 0 };
+                    App.UI.closeModals();
+                    document.getElementById('quiz-fullscreen-layer').classList.add('active'); 
+                    document.getElementById('quiz-header-label').innerText = mode === 'test' ? 'DAILY TEST' : 'PRACTICE';
+                    document.getElementById('quiz-summary').classList.remove('visible'); 
+                    this._renderCard();
+                },
+
+                _renderCard() {
+                    const q = App.State.quiz;
+                    if(q.index >= q.deck.length) return this._finishSession();
+
+                    const card = q.deck[q.index];
+                    const wrapper = document.getElementById('quiz-card-wrapper');
+                    wrapper.classList.remove('is-flipped');
+                    
+                    document.getElementById('fc-front-text').innerHTML = card.front;
+                    document.getElementById('fc-back-text').innerHTML = card.back;
+                    document.getElementById('quiz-progress-bar').style.width = `${((q.index)/q.deck.length)*100}%`;
+
+                    const footer = document.getElementById('quiz-back-controls');
+                    if (q.mode === 'test') {
+                        footer.innerHTML = `
+                            <div class="srs-grid">
+                                <button class="srs-btn srs-again" onclick="App.Quiz.rate('again', 0)"><span>Again</span><span>0 pts</span></button>
+                                <button class="srs-btn srs-hard" onclick="App.Quiz.rate('hard', 0.5)"><span>Hard</span><span>0.5 pts</span></button>
+                                <button class="srs-btn srs-good" onclick="App.Quiz.rate('good', 0.8)"><span>Good</span><span>0.8 pts</span></button>
+                                <button class="srs-btn srs-easy" onclick="App.Quiz.rate('easy', 1.0)"><span>Easy</span><span>1.0 pts</span></button>
+                            </div>`;
+                    } else {
+                        footer.innerHTML = `
+                             <div style="display:flex; gap:10px;">
+                                <button class="btn-large btn-outline" onclick="App.Quiz.nav(-1)">← Prev</button>
+                                <button class="btn-large btn-outline" onclick="App.Quiz.nav(1)">Next →</button>
+                            </div>`;
+                    }
+                },
+
+                flip() { document.getElementById('quiz-card-wrapper').classList.add('is-flipped'); },
+
+                async rate(status, points) {
+                    const q = App.State.quiz;
+                    const card = q.deck[q.index];
+                    q.currentScore += points;
+                    App.State.srsData[card.id] = { status: status, lastReview: Date.now() };
+                    await App.DB.put('srs_data', null, { id: card.id, ...App.State.srsData[card.id] });
+                    this.nav(1);
+                },
+
+                nav(dir) {
+                    const q = App.State.quiz;
+                    if (dir === 1) { q.index++; this._renderCard(); } 
+                    else if (dir === -1 && q.index > 0) { q.index--; this._renderCard(); }
+                },
+
+                _finishSession() {
+                    const q = App.State.quiz;
+                    document.getElementById('quiz-progress-bar').style.width = '100%';
+                    const scoreDisplay = document.getElementById('quiz-final-score');
+                    const msgDisplay = document.getElementById('quiz-summary-text');
+                    
+                    if (q.mode === 'test') {
+                        const finalScore = q.currentScore.toFixed(1);
+                        scoreDisplay.innerText = `${finalScore} / ${q.deck.length}`;
+                        scoreDisplay.style.display = 'block';
+                        if(finalScore > (q.deck.length * 0.8)) msgDisplay.innerText = "Outstanding! 🌟";
+                        else if(finalScore > (q.deck.length * 0.5)) msgDisplay.innerText = "Good Job! Keep going. 💪";
+                        else msgDisplay.innerText = "Review Needed. 📚";
+                    } else {
+                        scoreDisplay.style.display = 'none';
+                        msgDisplay.innerText = "Practice Session Complete";
+                    }
+                    document.getElementById('quiz-summary').classList.add('visible');
+                },
+
+                exit() {
+                    document.getElementById('quiz-fullscreen-layer').classList.remove('active');
+                    App.State.quiz.deck = [];
+                }
+            },
+
+            // --- UI RENDERING ---
+            UI: {
+                openModal(id) {
+                    const el = document.getElementById(id);
+                    if(id === 'modal-categories') this.renderCategoryChips();
+                    el.style.display = 'flex';
+                    void el.offsetWidth; el.classList.add('visible');
+                },
+                closeModals() {
+                    document.querySelectorAll('.modal-backdrop').forEach(el => {
+                        el.classList.remove('visible');
+                        setTimeout(() => el.style.display = 'none', 300);
+                    });
+                },
+                toast(msg) {
+                    const t = document.getElementById('toast');
+                    t.innerText = msg; t.classList.add('show');
+                    setTimeout(() => t.classList.remove('show'), 2500);
+                },
+                
+                renderCategoryChips() {
+                    const container = document.getElementById('category-chips-container');
+                    const categories = new Set(App.State.feed.map(i => i.category));
+                    const sorted = Array.from(categories).sort();
+                    
+                    let html = `<div class="chip ${App.State.activeCategory === 'all' ? 'active' : ''}" onclick="App.Actions.setCategory('all')">All</div>`;
+                    sorted.forEach(c => {
+                        const isActive = App.State.activeCategory === c;
+                        html += `<div class="chip ${isActive ? 'active' : ''}" onclick="App.Actions.setCategory('${c}')">${c}</div>`;
+                    });
+                    container.innerHTML = html;
+                },
+
+                populateExportSelect() {
+                    const select = document.getElementById('export-category-select');
+                    const categories = new Set(App.State.feed.map(i => i.category));
+                    let html = `<option value="all">All Categories</option><option value="bookmarks">Bookmarked Only</option>`;
+                    categories.forEach(c => html += `<option value="${c}">${c}</option>`);
+                    select.innerHTML = html;
+                },
+
+                renderFeed() {
+                    const container = document.getElementById('feed-list');
+                    const isHidden = App.State.isGlobalHide;
+                    
+                    let itemsToShow = App.State.feed;
+                    // Apply Category Filter
+                    if (App.State.activeCategory !== 'all') {
+                        itemsToShow = itemsToShow.filter(item => item.category === App.State.activeCategory);
+                    }
+                    // Apply Bookmark Filter
+                    if (App.State.filterBookmarks) {
+                        itemsToShow = itemsToShow.filter(item => App.State.bookmarks.has(item.id));
+                    }
+
+                    if (itemsToShow.length === 0) {
+                        container.innerHTML = `
+                            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); display:flex; flex-direction:column; align-items:center;">
+                                <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
+                                <p>No items found.</p>
+                                ${App.State.filterBookmarks || App.State.activeCategory !== 'all' ? '<button class="btn-primary" style="margin-top:20px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;" onclick="App.Actions.goHome()">Clear Filters</button>' : ''}
+                            </div>`;
+                        return;
+                    }
+
+                    container.innerHTML = itemsToShow.map((item, idx) => {
+                        const hasImg = item.image && item.image.trim() !== '';
+                        const isLiked = App.State.bookmarks.has(item.id);
+                        
+                        // Handle Keywords
+                        const hiddenClass = isHidden ? 'is-hidden' : '';
+                        const processedSummary = item.summary.replace(
+                            /\{\{c\d+::(.*?)\}\}/g, 
+                            `<span class="keyword ${hiddenClass}" onclick="App.Actions.toggleKeyword(this)">$1</span>`
+                        );
+                        
+                        const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
+
+                        return `
+                        <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}">
+                            <div class="scroll-content">
+                                ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
+                                <div class="card-body">
+                                    <div class="meta-row">
+                                        <span class="badge" onclick="App.Actions.setCategory('${item.category}')">${item.category}</span>
+                                        <span class="date">${item.date}</span>
+                                    </div>
+                                    <h2>${item.title}</h2>
+                                    <p class="summary-box">${processedSummary}</p>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="icon-btn" onclick="navigator.share({title:'${item.title}',text:'${item.summary}'})" title="Share">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                </button>
+                                <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
+                                     ${eyeIcon}
+                                </button>
+                                <button class="icon-btn ${isLiked?'liked':''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                </button>
+                            </div>
+                        </article>`;
+                    }).join('');
+                }
+            },
+            
+            // --- INIT ENGINE (The "Race" Logic) ---
+            async init() { 
+                try {
+                    // 1. SYSTEM PREP: Init DB & Settings
+                    await this.DB.init();
+                    
+                    const theme = await this.DB.get('settings', 'theme');
+                    if (theme !== undefined) {
+                        App.State.isDark = theme;
+                        document.documentElement.setAttribute('data-theme', App.State.isDark ? 'dark' : 'light');
+                    }
+                    
+                    // Load Content URL
+                    const url = await this.DB.get('settings', 'contentUrl');
+                    if (url) App.State.contentUrl = url;
+                    
+                    // Load Bookmarks
+                    const storedBookmarks = await this.DB.get('bookmarks', 'ids');
+                    if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
+
+                    // 2. INSTANT LOAD (The Performance Fix)
+                    const localFeed = await App.Data.loadLocal();
+                    App.State.feed = localFeed;
+                    App.UI.renderFeed();
+                    App.UI.populateExportSelect(); // Ensure export dropdown is ready
+                    this.hideLoader(); // APP IS INTERACTIVE NOW
+
+                    // 3. BACKGROUND SYNC (The "Live" Fix)
+                    console.log("🚀 Starting background sync...");
+                    const freshData = await App.Data.syncNetwork();
+
+                    // 4. REFRESH IF NEW DATA
+                    if (freshData) {
+                        console.log("⚡ New content received");
+                        App.State.feed = await App.Data.loadLocal();
+                        App.UI.renderFeed();
+                        App.UI.populateExportSelect();
+                        App.UI.toast("Feed Updated ⚡");
+                    }
+
+                } catch (err) {
+                    console.error("Critical Init Error", err);
+                    App.State.feed = App.Data.getHardcodedData();
+                    App.UI.renderFeed();
+                    this.hideLoader(); 
+                }
+            },
+
+            hideLoader() {
+                const loader = document.getElementById('startup-loader');
+                if(loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }
+            }
+        };
+
+        // Initialize App on DOM Ready
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((reg) => console.log('Service Worker registered!', reg))
+            .catch((err) => console.log('Service Worker failed:', err));
+        });
+    }
+    </script>
+</body>
+</html>
