@@ -155,7 +155,7 @@
         }
         .brand span { color: var(--primary); -webkit-text-fill-color: var(--primary); }
 
-        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .header-actions { display: flex; gap: 4px; align-items: center; }
 
         .icon-btn {
             background: transparent; border: none; cursor: pointer; padding: 10px; border-radius: 50%;
@@ -213,24 +213,50 @@
         }
 
         @media (max-width: 768px) {
-            #app-container { scroll-snap-type: y mandatory; padding-top: 0; height: 100vh; }
+            /* Fix 1: Use 100dvh for real mobile height */
+            #app-container { 
+                scroll-snap-type: y mandatory; 
+                padding-top: 0; 
+                height: 100dvh; 
+            }
             
+            /* Fix 2: Tighter Header for small screens */
             header { 
-                background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+                background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
                 backdrop-filter: none; border: none; pointer-events: none;
-                height: auto; padding-top: 2px; align-items: center; 
+                height: auto; padding: 12px 16px; align-items: flex-start; 
             }
             header > * { pointer-events: auto; }
+            .header-actions { gap: 2px; } 
+            .icon-btn { padding: 8px; }
 
-            .brand { -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-            .icon-btn { color: rgba(255,255,255,0.9); }
+            .brand { -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); font-size: 1.6rem; }
+            .icon-btn { color: rgba(255,255,255,0.95); }
             
             .news-card { 
-                height: 100vh; width: 100%; 
+                height: 100dvh; width: 100%; 
                 scroll-snap-align: start; scroll-snap-stop: always; 
                 border-radius: 0; border: none;
             }
-            .card-img { background-position: center top !important; }
+            
+            /* Fix 3: Logic to prevent accidental page flips */
+            .scroll-content {
+                overscroll-behavior-y: contain; /* Traps scroll inside card */
+                padding-bottom: 80px; /* Space for the floating footer */
+            }
+
+            /* Fix 4: Floating Glass Footer on Mobile */
+            .card-footer {
+                position: absolute;
+                bottom: 0; left: 0; right: 0;
+                background: linear-gradient(to top, var(--bg-card) 40%, rgba(24, 24, 27, 0.8) 80%, transparent 100%);
+                backdrop-filter: blur(4px);
+                border-top: none;
+                padding-bottom: 30px; /* Raise buttons for thumb reachability */
+                z-index: 20;
+            }
+
+            .card-img { height: 35vh; background-position: center top !important; }
         }
 
         .news-card { 
@@ -280,7 +306,7 @@
         /* Cloze Deletion / Keywords */
         .keyword {
             background: var(--highlight-bg); color: var(--primary); 
-            padding: 2px 4px; border-radius: 4px; font-weight: 600; cursor: pointer;
+            padding: 2px 5px; border-radius: 4px; font-weight: 600; cursor: pointer;
             border-bottom: 1px dashed var(--primary); transition: all 0.3s ease;
             user-select: none;
         }
@@ -487,6 +513,22 @@
             width: 20px; height: 20px; border: 3px solid var(--border-glass);
             border-top: 3px solid var(--primary); border-radius: 50%;
             animation: spin 1s linear infinite; display: none;
+        }
+        /* HEART POP ANIMATION */
+        .heart-pop {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 6rem; color: var(--red);
+            pointer-events: none; z-index: 50;
+            opacity: 0;
+        }
+        .heart-pop.animate {
+            animation: popFade 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popFade {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
         }
 
     </style>
@@ -902,6 +944,27 @@
 
             // --- USER ACTIONS ---
             Actions: {
+                lastTapTime: 0,
+                handleTouchHeart(e, id) {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - this.lastTapTime;
+                    if (tapLength < 300 && tapLength > 0) {
+                        e.preventDefault(); // Prevent zoom
+                        this.triggerHeartAnimation(id);
+                    }
+                    this.lastTapTime = currentTime;
+                },
+
+                triggerHeartAnimation(id) {
+                    const heart = document.getElementById(`heart-anim-${id}`);
+                    if(heart) {
+                        heart.classList.remove('animate');
+                        void heart.offsetWidth; // Trigger reflow
+                        heart.classList.add('animate');
+                    }
+                    this.toggleBookmark(id);
+                },
+
                 async toggleTheme() {
                     App.State.isDark = !App.State.isDark;
                     document.documentElement.setAttribute('data-theme', App.State.isDark ? 'dark' : 'light');
@@ -1256,25 +1319,31 @@
                         const hiddenClass = isHidden ? 'is-hidden' : '';
                         const processedSummary = item.summary.replace(
                             /\{\{c\d+::(.*?)\}\}/g, 
-                            `<span class="keyword ${hiddenClass}" onclick="App.Actions.toggleKeyword(this)">$1</span>`
+                            `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">$1</span>`
                         );
                         
                         const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
 
+                        // NOTE: Added ontouchstart for custom double tap handler and Double Click for desktop
                         return `
-                        <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}">
+                        <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}" 
+                             ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
+                             ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
+                            
+                            <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
+
                             <div class="scroll-content">
                                 ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
                                 <div class="card-body">
                                     <div class="meta-row">
-                                        <span class="badge" onclick="App.Actions.setCategory('${item.category}')">${item.category}</span>
+                                        <span class="badge" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
                                         <span class="date">${item.date}</span>
                                     </div>
                                     <h2>${item.title}</h2>
                                     <p class="summary-box">${processedSummary}</p>
                                 </div>
                             </div>
-                            <div class="card-footer">
+                            <div class="card-footer" onclick="event.stopPropagation()">
                                 <button class="icon-btn" onclick="navigator.share({title:'${item.title}',text:'${item.summary}'})" title="Share">
                                     <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                 </button>
@@ -1287,7 +1356,7 @@
                             </div>
                         </article>`;
                     }).join('');
-                }
+                },
             },
             
             // --- INIT ENGINE (The "Race" Logic) ---
