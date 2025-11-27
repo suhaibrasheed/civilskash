@@ -13,13 +13,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* =========================================
            1. DESIGN TOKENS & THEME ENGINE
            ========================================= */
         :root {
-            --primary: #2dd4bf;       
-            --primary-dim: rgba(45, 212, 191, 0.15);
+        
             --accent-gold: #fbbf24;   
             --red: #f43f5e;           
             --green: #10b981;         
@@ -41,7 +41,11 @@
             --bg-modal: #18181b;
             --bg-overlay: #09090b;
             --text-main: #f4f4f5;     
-            --text-muted: #a1a1aa;    
+            --text-muted: #c5c5d1; 
+            --primary: #fbbf24;       
+            --primary-dim: rgba(251, 191, 36, 0.15);
+            --highlight-bg: rgba(251, 191, 36, 0.15);
+            --chip-active: #fbbf24;   
             --border-glass: rgba(255, 255, 255, 0.08);
             --bg-glass: rgba(9, 9, 11, 0.85);
             --shadow-soft: 0 4px 20px rgba(0,0,0,0.5);
@@ -56,8 +60,11 @@
             --scroll-track: #27272a;
             --scroll-thumb: #52525b;
             --chip-bg: #27272a;
-            --chip-active: #2dd4bf;
             --chip-active-text: #000;
+            --toolbar-bg: rgba(24, 24, 27, 0.75);
+            --toolbar-border: rgba(255, 255, 255, 0.1);
+            --toolbar-text: rgba(255, 255, 255, 0.8);
+            --toolbar-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         /* LIGHT THEME */
@@ -67,7 +74,12 @@
             --bg-modal: #ffffff;
             --bg-overlay: #f0fdfa;
             --text-main: #1e293b;     
-            --text-muted: #64748b;    
+            --text-muted: #64748b; 
+            
+            --primary: #1bc4b6;       
+            --primary-dim: rgba(13, 148, 136, 0.15);
+            --highlight-bg: rgba(13, 148, 136, 0.15);
+
             --border-glass: rgba(0, 0, 0, 0.06);
             --bg-glass: rgba(255, 255, 255, 0.9);
             --shadow-soft: 0 10px 30px rgba(0,0,0,0.05);
@@ -82,9 +94,41 @@
             --scroll-track: #e2e8f0;
             --scroll-thumb: #94a3b8;
             --chip-bg: #e2e8f0;
-            --chip-active: #2dd4bf;
+            --chip-active: #24e3ca;
             --chip-active-text: #000;
+            --toolbar-bg: rgba(255, 255, 255, 0.75); /* Frosted White */
+            --toolbar-border: rgba(0, 0, 0, 0.1);
+            --toolbar-text: #334155; /* Dark Grey Icons */
+            --toolbar-shadow: 0 10px 30px rgba(0,0,0,0.1);
+
         }
+        :root[data-theme="sepia"] {
+            --bg-body: #f2e9d0;       
+            --bg-card: #fbf6e6;
+            --bg-modal: #fbf6e6;
+            --bg-overlay: #f2e9d0;
+            --text-main: #433422;     /* Dark Coffee */
+            --text-muted: #857258;    /* Light Leather */
+            --primary: #d97706;       /* Amber */
+            --primary-dim: rgba(217, 119, 6, 0.15);
+            --border-glass: rgba(67, 52, 34, 0.1);
+            --bg-glass: rgba(251, 246, 230, 0.9);
+            --shadow-soft: 0 4px 20px rgba(67, 52, 34, 0.05);
+            --highlight-bg: rgba(217, 119, 6, 0.15);
+            --cloze-bg: rgba(67, 52, 34, 0.05);
+            --cloze-border: #d4c5a9;
+            --gradient-text-card: linear-gradient(to bottom, #fbf6e6, #f2e9d0);
+            --chip-bg: #e6dac0;
+            --chip-active: #d97706;
+            --chip-active-text: #fff;
+            --scroll-thumb: #d4c5a9;
+            
+            --toolbar-bg: rgba(251, 246, 230, 0.85); /* Warm Paper */
+            --toolbar-border: rgba(67, 52, 34, 0.15);
+            --toolbar-text: #433422; /* Coffee color */
+            --toolbar-shadow: 0 10px 20px rgba(67, 52, 34, 0.1);
+        }
+
 
         /* =========================================
            2. BASE & UTILITY
@@ -149,10 +193,14 @@
         }
 
         .brand { 
-            font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px; cursor: pointer;
+            font-weight: 800; 
+            font-size: 1.8rem; /* Increased size */
+            letter-spacing: -0.5px; cursor: pointer;
             background: linear-gradient(135deg, var(--text-main) 0%, var(--text-muted) 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; 
         }
+
         .brand span { color: var(--primary); -webkit-text-fill-color: var(--primary); }
 
         .header-actions { display: flex; gap: 4px; align-items: center; }
@@ -211,53 +259,97 @@
                 box-shadow: var(--shadow-soft); overflow: hidden;
             }
         }
+        .action-toolbar-container {
+            padding: 15px 20px 30px 20px; 
+            display: flex; justify-content: center; width: 100%;
+        }
+
+        .action-toolbar {
+            display: flex; align-items: center; justify-content: space-evenly; 
+            gap: 15px; /* Reduced gap for compactness */
+            
+            background: var(--toolbar-bg); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); /* Creamier blur */
+            
+            border: 1px solid var(--toolbar-border);
+            box-shadow: 
+                0 8px 32px -4px rgba(0,0,0,0.1),       /* Soft Drop Shadow */
+                inset 0 1px 1px rgba(255, 255, 255, 0.5); /* Inner Top Gloss Highlight */
+
+            padding: 4px 20px; /* Reduced from 12px 32px */
+            border-radius: 50px;
+            min-width: 180px; /* Slightly smaller min-width */
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Bouncy transition */
+        }
+        .action-toolbar .icon-btn svg {
+            width: 28px;   /* Increased from 22px */
+            height: 28px;
+            stroke-width: 1.8; /* Slightly cleaner lines for larger icons */
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Cute Hover Bounce */
+        .action-toolbar .icon-btn:hover svg {
+            transform: scale(1.2);
+        }
+        .action-toolbar .icon-btn { 
+            padding: 8px; 
+            color: var(--toolbar-text); /* Dynamic Icon Color */
+        }
+        
+        .action-toolbar .icon-btn:hover {
+            color: var(--primary); /* Hover is always primary color */
+            transform: scale(1.15);
+            background: transparent;
+        }
+        
+        /* Keep the liked heart red regardless of theme */
+        .action-toolbar .icon-btn.liked { 
+            color: var(--red) !important; 
+        }
 
         @media (max-width: 768px) {
-            /* Fix 1: Use 100dvh for real mobile height */
             #app-container { 
                 scroll-snap-type: y mandatory; 
                 padding-top: 0; 
                 height: 100dvh; 
             }
             
-            /* Fix 2: Tighter Header for small screens */
             header { 
                 background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
                 backdrop-filter: none; border: none; pointer-events: none;
                 height: auto; padding: 12px 16px; align-items: flex-start; 
             }
             header > * { pointer-events: auto; }
-            .header-actions { gap: 2px; } 
-            .icon-btn { padding: 8px; }
+            .header-actions { gap: 2px; }
 
-            .brand { -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); font-size: 1.6rem; }
+            .brand { 
+                -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); 
+                font-size: 1.5rem; 
+            }
             .icon-btn { color: rgba(255,255,255,0.95); }
             
             .news-card { 
                 height: 100dvh; width: 100%; 
-                scroll-snap-align: start; scroll-snap-stop: always; 
+                scroll-snap-align: start; 
+                /* CHANGED: 'normal' allows smoother scrolling past cards */
+                scroll-snap-stop: normal; 
                 border-radius: 0; border: none;
+                display: flex; flex-direction: column; 
             }
             
-            /* Fix 3: Logic to prevent accidental page flips */
             .scroll-content {
-                overscroll-behavior-y: contain; /* Traps scroll inside card */
-                padding-bottom: 80px; /* Space for the floating footer */
+                flex: 1; overflow-y: auto;
+                /* DELETED: overscroll-behavior-y: contain; <--- THIS WAS THE TRAP */
+                -webkit-overflow-scrolling: touch;
+                display: block; 
+                padding-bottom: 20px; /* Small breathing room at bottom */
             }
 
-            /* Fix 4: Floating Glass Footer on Mobile */
-            .card-footer {
-                position: absolute;
-                bottom: 0; left: 0; right: 0;
-                background: linear-gradient(to top, var(--bg-card) 40%, rgba(24, 24, 27, 0.8) 80%, transparent 100%);
-                backdrop-filter: blur(4px);
-                border-top: none;
-                padding-bottom: 30px; /* Raise buttons for thumb reachability */
-                z-index: 20;
-            }
-
+            .card-footer { display: none !important; } 
             .card-img { height: 35vh; background-position: center top !important; }
         }
+        
 
         .news-card { 
             background: var(--bg-card); position: relative; 
@@ -281,7 +373,7 @@
 
         .spin-active { animation: spin 1s linear infinite; color: var(--primary) !important; }
 
-        .card-body { padding: 24px; position: relative; z-index: 2; }
+        .card-body { padding: 24px 24px 4px 24px; position: relative; z-index: 2; }
 
         .news-card.text-only .scroll-content { background: var(--gradient-text-card); }
         .news-card.text-only .card-img { display: none; }
@@ -300,7 +392,7 @@
         }
         .summary-box { 
             font-family: var(--font-read); font-size: 1.15rem; line-height: 1.75; 
-            color: var(--text-muted); margin-bottom: 24px; 
+            color: var(--text-muted); margin-bottom: 4px; 
         }
 
         /* Cloze Deletion / Keywords */
@@ -531,6 +623,22 @@
             100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
         }
 
+        /* SNAPSHOT STYLES */
+        .watermark-overlay {
+            position: absolute; top: 20px; right: 20px;
+            font-family: var(--font-ui); font-weight: 800; font-size: 1.5rem;
+            color: rgba(255,255,255,0.8); text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            z-index: 999; display: none; /* Hidden normally */
+        }
+        
+        /* When capturing, hide the toolbar and show watermark */
+        .news-card.capturing .action-toolbar-container { display: none !important; }
+        .news-card.capturing .watermark-overlay { display: block !important; }
+        .news-card.capturing {
+            border-radius: 0 !important; /* Clean corners for image */
+            box-shadow: none !important;
+        }
+
     </style>
 </head>
 <body class="theme-dark">
@@ -678,10 +786,15 @@
             <h2 style="margin-bottom:20px;">Settings</h2>
             
             <div class="setting-row">
-                <span class="setting-label">Theme</span>
-                <button class="icon-btn" onclick="App.Actions.toggleTheme()" id="theme-toggle-btn">
-                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                </button>
+                <div>
+                    <span class="setting-label">App Theme</span>
+                    <span class="setting-sub">Choose your visual style</span>
+                </div>
+                <select id="theme-select" onchange="App.Actions.setTheme(this.value)" style="min-width: 120px;">
+                    <option value="dark">Dark (Default)</option>
+                    <option value="light">Light (Day)</option>
+                    <option value="sepia">Sepia (Reader)</option>
+                </select>
             </div>
 
             <div class="setting-row">
@@ -703,7 +816,7 @@
                             <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </button>
                     </div>
-                    <span class="setting-sub">Save your progress for the NoteKash ecosystem</span>
+                    <span class="setting-sub">Save your notes & flashcards to NoteKash App</span>
                 </div>
             </div>
             <div style="display:flex; gap:10px; margin-top:10px;">
@@ -965,10 +1078,66 @@
                     this.toggleBookmark(id);
                 },
 
-                async toggleTheme() {
-                    App.State.isDark = !App.State.isDark;
-                    document.documentElement.setAttribute('data-theme', App.State.isDark ? 'dark' : 'light');
-                    await App.DB.put('settings', 'theme', App.State.isDark);
+                async shareAsImage(cardId) {
+                    const card = document.getElementById(cardId);
+                    if (!card) return;
+
+                    App.UI.toast("Generating Image... 📸");
+                    card.classList.add('capturing'); // Activates CSS to hide buttons & show watermark
+
+                    try {
+                        const currentBg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim();
+
+                        const canvas = await html2canvas(card, {
+                            useCORS: true, 
+                            allowTaint: true,
+                            backgroundColor: currentBg, 
+                            scale: 2, 
+                            scrollY: 0,
+                            windowHeight: card.scrollHeight + 100 
+                        });
+
+                        canvas.toBlob(async (blob) => {
+                            if (!blob) throw new Error("Image generation failed");
+                            const file = new File([blob], "CivilsKash_Share.png", { type: "image/png" });
+
+                            if (navigator.share) {
+                                await navigator.share({
+                                    files: [file],
+                                    title: 'CivilsKash Daily',
+                                    text: 'Find Exam Current Affairs on CivilsKash.in'
+                                });
+                            } else {
+                                const link = document.createElement('a');
+                                link.download = 'CivilsKash-Card.png';
+                                link.href = canvas.toDataURL();
+                                link.click();
+                                App.UI.toast("Image Downloaded");
+                            }
+                        }, 'image/png');
+
+                    } catch (err) {
+                        console.error(err);
+                        App.UI.toast("Share Failed. Try again.");
+                    } finally {
+                        card.classList.remove('capturing');
+                    }
+                },
+
+                async setTheme(themeName) {
+                    App.State.isDark = (themeName === 'dark');
+                    
+                    // 1. Apply to DOM
+                    document.documentElement.setAttribute('data-theme', themeName);
+                    
+                    // 2. Save to DB
+                    await App.DB.put('settings', 'themeName', themeName); // New key 'themeName'
+                    
+                    // 3. Update Dropdown UI (if needed programmatically)
+                    const select = document.getElementById('theme-select');
+                    if(select) select.value = themeName;
+
+                    App.UI.toast(`Theme set to ${themeName.charAt(0).toUpperCase() + themeName.slice(1)}`);
                 },
 
                 async toggleBookmark(id) {
@@ -1282,8 +1451,12 @@
                 populateExportSelect() {
                     const select = document.getElementById('export-category-select');
                     const categories = new Set(App.State.feed.map(i => i.category));
-                    let html = `<option value="all">All Categories</option><option value="bookmarks">Bookmarked Only</option>`;
+                    let html = `<option value="bookmarks">Bookmarked Only</option>`;
+                    
                     categories.forEach(c => html += `<option value="${c}">${c}</option>`);
+
+                    html += `<option value="all">All Categories</option>`;
+                    
                     select.innerHTML = html;
                 },
 
@@ -1324,12 +1497,13 @@
                         
                         const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
 
-                        // NOTE: Added ontouchstart for custom double tap handler and Double Click for desktop
                         return `
                         <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}" 
                              ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
                              ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
                             
+                            <div class="watermark-overlay">Civils<span style="color:var(--primary)">Kash</span></div>
+
                             <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
 
                             <div class="scroll-content">
@@ -1342,17 +1516,26 @@
                                     <h2>${item.title}</h2>
                                     <p class="summary-box">${processedSummary}</p>
                                 </div>
-                            </div>
-                            <div class="card-footer" onclick="event.stopPropagation()">
-                                <button class="icon-btn" onclick="navigator.share({title:'${item.title}',text:'${item.summary}'})" title="Share">
-                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                                </button>
-                                <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
-                                     ${eyeIcon}
-                                </button>
-                                <button class="icon-btn ${isLiked?'liked':''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
-                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                                </button>
+
+                                <div class="action-toolbar-container" onclick="event.stopPropagation()">
+                                    <div class="action-toolbar">
+                                        <button class="icon-btn" onclick="event.stopPropagation(); App.Actions.shareAsImage('${item.id}')" title="Share as Image">
+                                            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                        </button>
+                                        
+                                        <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+
+                                        <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
+                                            ${eyeIcon}
+                                        </button>
+
+                                        <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+
+                                        <button class="icon-btn ${isLiked?'liked':''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
+                                            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </article>`;
                     }).join('');
@@ -1365,11 +1548,22 @@
                     // 1. SYSTEM PREP: Init DB & Settings
                     await this.DB.init();
                     
-                    const theme = await this.DB.get('settings', 'theme');
-                    if (theme !== undefined) {
-                        App.State.isDark = theme;
-                        document.documentElement.setAttribute('data-theme', App.State.isDark ? 'dark' : 'light');
+                    // NEW: Load specific theme string (sepia/light/dark)
+                    let savedTheme = await this.DB.get('settings', 'themeName');
+                    
+                    // Fallback for users upgrading from old version
+                    if (!savedTheme) {
+                        const oldBool = await this.DB.get('settings', 'theme');
+                        if (oldBool !== undefined) savedTheme = oldBool ? 'dark' : 'light';
                     }
+
+                    // Default to 'dark' if nothing found
+                    if (!savedTheme) savedTheme = 'dark';
+                    
+                    // Apply to DOM & Dropdown
+                    document.documentElement.setAttribute('data-theme', savedTheme);
+                    const themeSelect = document.getElementById('theme-select');
+                    if (themeSelect) themeSelect.value = savedTheme;
                     
                     // Load Content URL
                     const url = await this.DB.get('settings', 'contentUrl');
