@@ -186,7 +186,7 @@
            4. HEADER
            ========================================= */
         header {
-            position: fixed; top: 0; left: 0; width: 100%; height: var(--header-h); z-index: 100;
+            position: fixed; top: 0; left: 0; width: 100%; height: 55px; z-index: 100;
             background: var(--bg-glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border-glass); 
             display: flex; justify-content: space-between; align-items: center; padding: 0 24px;
@@ -314,12 +314,18 @@
                 padding-top: 0; 
                 height: 100dvh; 
             }
-            
+
             header { 
-                background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
-                backdrop-filter: none; border: none; pointer-events: none;
-                height: auto; padding: 12px 16px; align-items: flex-start; 
+                background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+                backdrop-filter: none; 
+                border: none; 
+                pointer-events: none;
+                height: 50px; /* Fixed height for stability */
+                padding: 0 10px; 
+                align-items: center; 
+                display: flex;
             }
+
             header > * { pointer-events: auto; }
             .header-actions { gap: 2px; }
 
@@ -332,7 +338,6 @@
             .news-card { 
                 height: 100dvh; width: 100%; 
                 scroll-snap-align: start; 
-                /* CHANGED: 'normal' allows smoother scrolling past cards */
                 scroll-snap-stop: normal; 
                 border-radius: 0; border: none;
                 display: flex; flex-direction: column; 
@@ -340,14 +345,17 @@
             
             .scroll-content {
                 flex: 1; overflow-y: auto;
-                /* DELETED: overscroll-behavior-y: contain; <--- THIS WAS THE TRAP */
                 -webkit-overflow-scrolling: touch;
                 display: block; 
-                padding-bottom: 20px; /* Small breathing room at bottom */
+                padding-bottom: 20px; 
             }
 
             .card-footer { display: none !important; } 
-            .card-img { height: 35vh; background-position: center top !important; }
+
+            .card-img { 
+                height: 50vh; 
+                background-position: center top !important; 
+            }
         }
         
 
@@ -362,13 +370,8 @@
         }
 
         .card-img { 
-            height: 40vh; min-height: 250px; flex-shrink: 0; 
+            height: 50vh; min-height: 250px; flex-shrink: 0; 
             background-size: cover; background-position: center; position: relative; 
-        }
-      
-        .card-img::after { 
-            content: ''; position: absolute; inset: 0; 
-            background: linear-gradient(to top, var(--bg-card) 0%, transparent 10%); 
         }
 
         .spin-active { animation: spin 1s linear infinite; color: var(--primary) !important; }
@@ -595,7 +598,7 @@
             position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px); 
             background: var(--text-main); color: var(--bg-body); padding: 12px 24px; 
             border-radius: 50px; font-weight: 700; opacity: 0; pointer-events: none; 
-            transition: var(--transition-spring); z-index: 3000; 
+            transition: var(--transition-spring); z-index: 20000 !important; 
             box-shadow: var(--shadow-soft); white-space: nowrap;
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -800,11 +803,22 @@
             <div class="setting-row">
                 <div>
                     <span class="setting-label">Update Content</span>
-                    <span class="setting-sub">Fetch latest code and notes</span>
+                    <span class="setting-sub">Fetch latest flashcards and notes</span>
                 </div>
                 <button class="btn-small btn-outline" onclick="App.Data.forceUpdate()">
                     <span id="update-btn-text">Check Updates</span>
                     <div class="loading-spinner" id="update-spinner"></div>
+                </button>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <span class="setting-label">CivilKash Update</span>
+                    <span class="setting-sub">Move to latest version of App</span>
+                </div>
+                <button class="btn-small btn-outline" 
+                        style="border-color:var(--red); color:var(--red);" 
+                        onclick="App.UI.openModal('modal-force-update')">
+                    Install Version
                 </button>
             </div>
 
@@ -830,7 +844,23 @@
             <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:20px;">Close</button>
         </div>
     </div>
-
+    <div id="modal-force-update" class="modal-backdrop">
+        <div class="modal-card" style="text-align:center; border: 1px solid var(--red);">
+            <div style="font-size:3rem; margin-bottom:10px; animation: bounce 2s infinite;">⚠️</div>
+            <h2 style="margin-bottom:10px; color: var(--red);">Force Update?</h2>
+            <p style="color:var(--text-muted); margin-bottom:25px; line-height: 1.5;">
+                Export your bookmarks to NoteKash App before continuing to Force Update App to Latest Version.
+            </p>
+            <div style="display:flex; gap:15px;">
+                <button class="btn-large btn-outline" onclick="App.UI.closeModals()">Cancel</button>
+                <button class="btn-large btn-primary" 
+                        style="background:var(--red); color:white; border:none; box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);" 
+                        onclick="App.System.executeHardRefresh()">
+                    Yes, Update
+                </button>
+            </div>
+        </div>
+    </div>
     <div id="toast">Notification</div>
 
     <script>
@@ -1542,25 +1572,50 @@
                 },
             },
             
+            System: {
+                async executeHardRefresh() {
+                    // 1. Close the modal and show loading
+                    App.UI.closeModals();
+                    App.UI.toast("Downloading latest App Version... 🚀");
+                    
+                    // 2. Set the "Success" flag for after reload
+                    localStorage.setItem('app_was_updated', 'true');
+
+                    // 3. Unregister Service Worker (Kill old version)
+                    if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (const registration of registrations) await registration.unregister();
+                    }
+
+                    // 4. Delete Cache (Delete old files)
+                    if ('caches' in window) {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(key => caches.delete(key)));
+                    }
+
+                    // 5. Force Reload
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 1000);
+                }
+            },
+
             // --- INIT ENGINE (The "Race" Logic) ---
             async init() { 
                 try {
                     // 1. SYSTEM PREP: Init DB & Settings
                     await this.DB.init();
                     
-                    // NEW: Load specific theme string (sepia/light/dark)
+                    // Load saved theme
                     let savedTheme = await this.DB.get('settings', 'themeName');
-                    
-                    // Fallback for users upgrading from old version
+                    // Fallback for older versions
                     if (!savedTheme) {
                         const oldBool = await this.DB.get('settings', 'theme');
                         if (oldBool !== undefined) savedTheme = oldBool ? 'dark' : 'light';
                     }
-
-                    // Default to 'dark' if nothing found
                     if (!savedTheme) savedTheme = 'dark';
                     
-                    // Apply to DOM & Dropdown
+                    // Apply Theme
                     document.documentElement.setAttribute('data-theme', savedTheme);
                     const themeSelect = document.getElementById('theme-select');
                     if (themeSelect) themeSelect.value = savedTheme;
@@ -1577,14 +1632,25 @@
                     const localFeed = await App.Data.loadLocal();
                     App.State.feed = localFeed;
                     App.UI.renderFeed();
-                    App.UI.populateExportSelect(); // Ensure export dropdown is ready
-                    this.hideLoader(); // APP IS INTERACTIVE NOW
+                    App.UI.populateExportSelect(); 
+                    
+                    // 3. HIDE LOADER & SHOW INTERFACE
+                    this.hideLoader(); 
 
-                    // 3. BACKGROUND SYNC (The "Live" Fix)
+                    // CHECK FOR UPDATE SUCCESS ---
+                    if (localStorage.getItem('app_was_updated')) {
+                        setTimeout(() => {
+                            App.UI.toast("CivilsKash Updated Successfully! 🎉");
+                            localStorage.removeItem('app_was_updated'); // Clear the flag
+                        }, 500); // Small delay to let loader fade
+                    }
+              
+
+                    // 4. BACKGROUND SYNC (The "Live" Fix)
                     console.log("🚀 Starting background sync...");
                     const freshData = await App.Data.syncNetwork();
 
-                    // 4. REFRESH IF NEW DATA
+                    // 5. REFRESH IF NEW DATA FOUND
                     if (freshData) {
                         console.log("⚡ New content received");
                         App.State.feed = await App.Data.loadLocal();
