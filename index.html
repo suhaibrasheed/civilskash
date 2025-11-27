@@ -636,11 +636,86 @@
         
         /* When capturing, hide the toolbar and show watermark */
         .news-card.capturing .action-toolbar-container { display: none !important; }
-        .news-card.capturing .watermark-overlay { display: block !important; }
-        .news-card.capturing {
-            border-radius: 0 !important; /* Clean corners for image */
-            box-shadow: none !important;
+        .news-card.capturing .watermark-overlay {
+            top: 20px;
+            right: 20px;
+            display: block !important;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8); /* Stronger shadow for readability */
         }
+        .news-card.capturing .card-img {
+            margin-top: 0 !important;
+            border-radius: 0 !important;
+        }
+        .news-card.capturing {
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;       
+            padding-top: 0 !important;  
+            padding-bottom: 40px !important; /* Breathing room at bottom */
+            transform: none !important;
+            border: none !important; /* Remove any border that might look weird */
+        }
+        .news-card.capturing .scroll-content {
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        /* Search Input Styling inside Modal */
+        .search-input-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 14px 16px 14px 45px; /* Space for icon */
+            background: var(--bg-body);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-family: var(--font-ui);
+            transition: all 0.3s ease;
+        }
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-dim);
+        }
+        .search-icon-overlay {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* Highlight Styling for Search Matches */
+        .search-highlight {
+            background-color: rgba(244, 63, 94, 0.25); /* Transparent Red */
+            color: var(--red);
+            font-weight: 800;
+            border-radius: 2px;
+            padding: 0 2px;
+        }
+        .search-clear-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 5px; /* Larger clickable area */
+            display: none; /* Hidden by default */
+            transition: color 0.2s;
+        }
+        .search-clear-btn:hover {
+            color: var(--primary);
+        }
+
 
     </style>
 </head>
@@ -688,9 +763,22 @@
 
     <div id="modal-categories" class="modal-backdrop">
         <div class="modal-card">
-            <h2 style="margin-bottom:10px;">Filter Topics</h2>
-            <p style="color:var(--text-muted); font-size:0.9rem;">Select a category to focus your study.</p>
+            
+            <div class="search-input-container">
+                <svg class="search-icon-overlay" width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                
+                <input type="text" id="global-search-input" class="search-input" 
+                    placeholder="Search topics..." 
+                    oninput="App.Actions.handleSearch(this.value)"
+                    onkeydown="if(event.key === 'Enter') { this.blur(); App.UI.closeModals(); }">
+                <button id="search-clear-btn" class="search-clear-btn" onclick="App.Actions.clearSearch()">✕</button>
+            </div>
+
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom: 10px;">Or Filter by Category:</p>
             <div class="chip-container" id="category-chips-container"></div>
+            
             <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:20px;">Done</button>
         </div>
     </div>
@@ -961,6 +1049,7 @@
                 bookmarks: new Set(), 
                 filterBookmarks: false,
                 activeCategory: 'all',
+                searchTerm: '',
                 srsData: {}, 
                 isDark: true, 
                 isGlobalHide: false,
@@ -1108,38 +1197,79 @@
                     this.toggleBookmark(id);
                 },
 
-                async shareAsImage(cardId) {
+               async shareAsImage(cardId) {
                     const card = document.getElementById(cardId);
                     if (!card) return;
 
                     App.UI.toast("Generating Image... 📸");
-                    card.classList.add('capturing'); // Activates CSS to hide buttons & show watermark
+                    card.classList.add('capturing');
 
                     try {
                         const currentBg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim();
 
+                        // Capture logic
                         const canvas = await html2canvas(card, {
-                            useCORS: true, 
-                            allowTaint: true,
-                            backgroundColor: currentBg, 
-                            scale: 2, 
-                            scrollY: 0,
-                            windowHeight: card.scrollHeight + 100 
+                            useCORS: true,       // CRITICAL: Tries to fetch images naturally
+                            allowTaint: true,    // Allows external images
+                            backgroundColor: currentBg,
+                            scale: 2,            // Retina quality
+                            scrollY: 0,          // Reset scroll
+                            
+                            // Layout Fixes Only (No Proxying)
+                            onclone: (clonedDoc) => {
+                                const clonedCard = clonedDoc.getElementById(cardId);
+                                const scrollContent = clonedCard.querySelector('.scroll-content');
+                                const cardImg = clonedCard.querySelector('.card-img');
+
+                                // 1. UNLOCK HEIGHT (Fixes Long Content cutting off)
+                                clonedCard.style.height = 'auto';
+                                clonedCard.style.overflow = 'visible';
+                                
+                                if (scrollContent) {
+                                    scrollContent.style.height = 'auto';
+                                    scrollContent.style.overflow = 'visible';
+                                    scrollContent.scrollTop = 0;
+                                }
+
+                                // 2. STABILIZE IMAGE CONTAINER
+                                if (cardImg) {
+                                    const style = window.getComputedStyle(cardImg);
+                                    // Only force height if there is actually an image
+                                    if(style.backgroundImage !== 'none') {
+                                        cardImg.style.display = 'block';
+                                        cardImg.style.height = '350px'; // Consistent aesthetic
+                                        cardImg.style.minHeight = '350px';
+                                        cardImg.style.flexShrink = '0';
+                                    } else {
+                                        // If no image exists, hide the container so we don't get a blank gap
+                                        cardImg.style.display = 'none';
+                                    }
+                                }
+
+                                // 3. CLEAN UP UI
+                                const toolbar = clonedCard.querySelector('.action-toolbar-container');
+                                if(toolbar) toolbar.style.display = 'none';
+                                
+                                const watermark = clonedCard.querySelector('.watermark-overlay');
+                                if(watermark) watermark.style.display = 'block';
+                            }
                         });
 
+                        // Save/Share Logic
                         canvas.toBlob(async (blob) => {
                             if (!blob) throw new Error("Image generation failed");
-                            const file = new File([blob], "CivilsKash_Share.png", { type: "image/png" });
+                            
+                            const title = card.querySelector('h2') ? card.querySelector('h2').innerText.substring(0, 15) : 'Note';
+                            const fileName = `CivilsKash_${title.replace(/[^a-z0-9]/gi, '_')}.png`;
+                            const file = new File([blob], fileName, { type: "image/png" });
 
                             if (navigator.share) {
-                                await navigator.share({
-                                    files: [file],
-                                    title: 'CivilsKash Daily',
-                                    text: 'Find Exam Current Affairs on CivilsKash.in'
-                                });
+                                try {
+                                    await navigator.share({ files: [file] });
+                                } catch (e) { console.log('Share dismissed'); }
                             } else {
                                 const link = document.createElement('a');
-                                link.download = 'CivilsKash-Card.png';
+                                link.download = fileName;
                                 link.href = canvas.toDataURL();
                                 link.click();
                                 App.UI.toast("Image Downloaded");
@@ -1147,8 +1277,8 @@
                         }, 'image/png');
 
                     } catch (err) {
-                        console.error(err);
-                        App.UI.toast("Share Failed. Try again.");
+                        console.error("Capture Error:", err);
+                        App.UI.toast("Share Failed.");
                     } finally {
                         card.classList.remove('capturing');
                     }
@@ -1253,9 +1383,36 @@
                     btn.innerHTML = isCurrentlyHidden ? App.Icons.eyeOpen : App.Icons.eyeClosed;
                 },
                 
+                handleSearch(query) {
+                    App.State.searchTerm = query.trim().toLowerCase();
+                    
+                    const btn = document.getElementById('search-clear-btn');
+                    if (btn) btn.style.display = (query.length > 0) ? 'block' : 'none';
+
+                    App.UI.renderFeed(); 
+                },
+
+                clearSearch() {
+                    App.State.searchTerm = '';
+                    
+                    const input = document.getElementById('global-search-input');
+                    const btn = document.getElementById('search-clear-btn');
+                    
+                    // Clear UI
+                    if(input) {
+                        input.value = '';
+                        input.focus(); // Keep focus so user can type something else
+                    }
+                    if(btn) btn.style.display = 'none';
+
+                    App.UI.renderFeed();
+                    App.UI.toast("Search Cleared");
+                },
+
                 goHome() {
                     App.State.activeCategory = 'all';
                     App.State.filterBookmarks = false;
+                    this.clearSearch(); 
                     document.getElementById('category-active-badge').style.display = 'none';
                     document.getElementById('category-btn').classList.remove('active-state');
                     document.getElementById('bookmarks-btn').classList.remove('active-state');
@@ -1449,9 +1606,23 @@
             UI: {
                 openModal(id) {
                     const el = document.getElementById(id);
-                    if(id === 'modal-categories') this.renderCategoryChips();
+                    
+                    if(id === 'modal-categories') {
+                        this.renderCategoryChips();
+                        
+                        setTimeout(() => {
+                            const input = document.getElementById('global-search-input');
+                            if(input) {
+                                input.focus();
+                                // Optional: Select existing text if any, so typing replaces it
+                                input.select(); 
+                            }
+                        }, 50);
+                    }
+                    
                     el.style.display = 'flex';
-                    void el.offsetWidth; el.classList.add('visible');
+                    void el.offsetWidth; // Trigger reflow for animation
+                    el.classList.add('visible');
                 },
                 closeModals() {
                     document.querySelectorAll('.modal-backdrop').forEach(el => {
@@ -1492,59 +1663,122 @@
 
                 renderFeed() {
                     const container = document.getElementById('feed-list');
-                    const isHidden = App.State.isGlobalHide;
                     
+                    // Get current state variables
+                    const isHidden = App.State.isGlobalHide;
+                    const term = App.State.searchTerm; 
+                    
+                    // --- 1. FILTERING LOGIC ---
                     let itemsToShow = App.State.feed;
-                    // Apply Category Filter
+
+                    // Filter by Search Term (Title or Summary)
+                    if (term.length > 0) {
+                        itemsToShow = itemsToShow.filter(item => {
+                            const content = (item.title + ' ' + item.summary).toLowerCase();
+                            return content.includes(term);
+                        });
+                    }
+
+                    // Filter by Category
                     if (App.State.activeCategory !== 'all') {
                         itemsToShow = itemsToShow.filter(item => item.category === App.State.activeCategory);
                     }
-                    // Apply Bookmark Filter
+
+                    // Filter by Bookmarks
                     if (App.State.filterBookmarks) {
                         itemsToShow = itemsToShow.filter(item => App.State.bookmarks.has(item.id));
                     }
 
+                    // --- 2. EMPTY STATE HANDLING ---
                     if (itemsToShow.length === 0) {
+                        let msg = "No items found.";
+                        let icon = "📭"; // Mailbox for general empty
+                        
+                        // Specific message for search
+                        if (term.length > 0) {
+                            msg = `No results found for "${term}"`;
+                            icon = "🔍";
+                        }
+                        
                         container.innerHTML = `
                             <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); display:flex; flex-direction:column; align-items:center;">
-                                <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
-                                <p>No items found.</p>
-                                ${App.State.filterBookmarks || App.State.activeCategory !== 'all' ? '<button class="btn-primary" style="margin-top:20px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;" onclick="App.Actions.goHome()">Clear Filters</button>' : ''}
+                                <div style="font-size: 3rem; margin-bottom: 20px;">${icon}</div>
+                                <p>${msg}</p>
+                                <button class="btn-primary" style="margin-top:20px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;" onclick="App.Actions.goHome()">Reset Filters</button>
                             </div>`;
                         return;
                     }
 
+                    // --- 3. HELPER: SMART HIGHLIGHTER ---
+                    const processSmartContent = (rawText, query, isSummary) => {
+                        let workingText = rawText;
+                        const clozeStorage = [];
+                        const hiddenClass = isHidden ? 'is-hidden' : '';
+
+                        // Step A: Protect Flashcards (Only needed for Summary)
+                        if (isSummary) {
+                            // Find {{c1::Answer}} blocks
+                            workingText = workingText.replace(/\{\{c\d+::(.*?)\}\}/g, (match, content) => {
+                                // Create the interactive HTML for the flashcard
+                                const clozeHtml = `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">${content}</span>`;
+                                
+                                // Store it safely
+                                clozeStorage.push(clozeHtml);
+                                
+                                // Replace with a unique, safe placeholder
+                                return `__PROTECTED_CLOZE_${clozeStorage.length - 1}__`;
+                            });
+                        }
+
+                        // Step B: Apply Search Highlight (Red)
+                        if (query && query.length > 0) {
+                            // 1. Escape regex characters (e.g., prevent crash if user types "?")
+                            const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            
+                            // 2. Wrap matching text in span
+                            const regex = new RegExp(`(${safeQuery})`, 'gi');
+                            workingText = workingText.replace(regex, '<span class="search-highlight">$1</span>');
+                        }
+
+                        // Step C: Restore Flashcards
+                        if (isSummary) {
+                            clozeStorage.forEach((html, index) => {
+                                workingText = workingText.replace(`__PROTECTED_CLOZE_${index}__`, html);
+                            });
+                        }
+                        return workingText;
+                    };
+
+                    // --- 4. RENDER LOOP ---
                     container.innerHTML = itemsToShow.map((item, idx) => {
                         const hasImg = item.image && item.image.trim() !== '';
                         const isLiked = App.State.bookmarks.has(item.id);
-                        
-                        // Handle Keywords
-                        const hiddenClass = isHidden ? 'is-hidden' : '';
-                        const processedSummary = item.summary.replace(
-                            /\{\{c\d+::(.*?)\}\}/g, 
-                            `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">$1</span>`
-                        );
-                        
                         const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
+
+                        // Process Content safely
+                        const finalTitle = processSmartContent(item.title, term, false); // False = No cloze logic for titles
+                        const finalSummary = processSmartContent(item.summary, term, true); // True = Handle clozes
 
                         return `
                         <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}" 
-                             ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
-                             ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
+                                ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
+                                ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
                             
                             <div class="watermark-overlay">Civils<span style="color:var(--primary)">Kash</span></div>
-
                             <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
 
                             <div class="scroll-content">
                                 ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
+                                
                                 <div class="card-body">
                                     <div class="meta-row">
                                         <span class="badge" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
                                         <span class="date">${item.date}</span>
                                     </div>
-                                    <h2>${item.title}</h2>
-                                    <p class="summary-box">${processedSummary}</p>
+                                    
+                                    <h2>${finalTitle}</h2>
+                                    
+                                    <p class="summary-box">${finalSummary}</p>
                                 </div>
 
                                 <div class="action-toolbar-container" onclick="event.stopPropagation()">
