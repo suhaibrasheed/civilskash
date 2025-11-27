@@ -656,7 +656,7 @@
     <header>
         <div class="brand" onclick="App.Actions.goHome()">Civils<span>Kash</span></div>
         <div class="header-actions">
-            <button class="icon-btn" id="sync-btn" onclick="App.Actions.triggerSync()" title="Check for Updates">
+            <button class="icon-btn" id="sync-btn" onclick="App.Actions.triggerSync()" title="Check for Latest Feed">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
             <button class="icon-btn" id="category-btn" onclick="App.UI.openModal('modal-categories')" title="Filter Categories">
@@ -1072,7 +1072,7 @@
                             // 2. Reload everything from DB + Hardcoded to get clean state
                             App.State.feed = await this.loadLocal();
                             App.UI.renderFeed();
-                            App.UI.toast("Updated Successfully");
+                            App.UI.toast("Update Successful ");
                         } else {
                             App.UI.toast("No changes or Offline");
                         }
@@ -1202,7 +1202,7 @@
                 async triggerSync() {
                     const btn = document.getElementById('sync-btn');
                     btn.classList.add('spin-active'); // Start Animation
-                    App.UI.toast("Checking for updates...");
+                    App.UI.toast("Checking for latest Feed...");
                     
                     await App.Data.forceUpdate();
                     
