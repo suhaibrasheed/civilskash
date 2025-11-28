@@ -14,6 +14,8 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_CLIENT_ID"
+     crossorigin="anonymous"></script>
     <style>
         /* =========================================
            1. DESIGN TOKENS & THEME ENGINE
@@ -716,6 +718,98 @@
             color: var(--primary);
         }
 
+        /* --- NATIVE AD STYLING --- */
+        .news-card.ad-unit {
+            border: 1px solid var(--primary-dim); /* Subtle border to distinguish */
+        }
+
+        .news-card.ad-unit .badge {
+            background: transparent;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+        }
+
+        .ad-cta-container {
+            padding: 15px 24px 30px 24px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .ad-cta-btn {
+            width: 100%;
+            background: var(--text-main);
+            color: var(--bg-card);
+            padding: 14px;
+            border-radius: 50px;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .ad-cta-btn:hover {
+            transform: scale(1.02);
+            opacity: 0.95;
+        }
+
+        .ad-cta-btn svg {
+            width: 18px; 
+            height: 18px; 
+            stroke-width: 2.5;
+        }
+        /* --- ADVERTISING CONTAINERS --- */
+        .news-card.google-ad-unit {
+            justify-content: center;
+            align-items: center;
+            background: var(--bg-card);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .google-ad-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.02); /* Slight contrast */
+        }
+
+        .ad-label-corner {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            border: 1px solid var(--border-glass);
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .google-ad-unit {
+            min-height: 280px; /* Force height so it doesn't collapse */
+            background: radial-gradient(circle, var(--bg-card) 0%, var(--bg-body) 100%);
+            border: 1px dashed var(--border-glass);
+        }
+
+        .google-ad-unit:empty::before {
+            content: 'Advertisement Loading...';
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
 
     </style>
 </head>
@@ -1060,6 +1154,75 @@
             Icons: {
                 eyeOpen: `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`,
                 eyeClosed: `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>`
+            },
+
+            // --- SMART ADVERTISING ENGINE ---
+           Ads: {
+                globalAdCounter: 0,
+                
+                // CONFIGURATION
+                config: {
+                    ratio: 12, 
+                    googleClientId: 'ca-pub-XXXXXXXXXXXXXXXX', 
+                    googleSlotId: '1234567890' 
+                },
+
+                // SELF PROMOTION INVENTORY (3 Distinct Ads)
+                inventory: [
+                    {
+                        id: 'self_1',
+                        image: 'https://images.unsplash.com/photo-1555421689-491a97ff2040?auto=format&fit=crop&w=800&q=80',
+                        title: 'Master Your Focus',
+                        summary: 'Struggling to remember GK facts? Try the <b>Pomodoro 2.0</b> technique designed specifically for civil service aspirants.',
+                        cta: 'Learn Method',
+                        link: '#productivity'
+                    },
+                    {
+                        id: 'self_2',
+                        image: 'https://images.unsplash.com/photo-1542601906-90da274fcffa?auto=format&fit=crop&w=800&q=80',
+                        title: 'Premium Mock Tests',
+                        summary: 'Get access to <b>50,000+ Previous Year Questions</b> with detailed analysis and AI-driven performance tracking.',
+                        cta: 'Start Free Trial',
+                        link: '#tests'
+                    },
+                    {
+                        id: 'self_3',
+                        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+                        title: 'Join NoteKash',
+                        summary: 'Sync your study notes across all devices. The ultimate companion app for serious aspirants.',
+                        cta: 'Download App',
+                        link: 'https://notekash.com'
+                    }
+                ],
+
+                getNextType() {
+                    this.globalAdCounter++;
+                    const isPlaceholder = this.config.googleClientId.includes('XXXXXXXXXXXXXXXX');
+                    
+                    if (isPlaceholder) return 'self';
+                    if (typeof window.adsbygoogle === 'undefined' && !document.querySelector('script[src*="adsbygoogle"]')) return 'self';
+                    if (this.globalAdCounter % this.config.ratio === 0) return 'self';
+
+                    return 'google';
+                },
+                
+                // --- NEW LOGIC: ROTATION WITH MEMORY ---
+                getRotatedSelfAd() {
+                    let lastIndex = parseInt(localStorage.getItem('civilsKash_last_ad_idx') || '-1');
+                    let nextIndex = (lastIndex + 1) % this.inventory.length;
+                    localStorage.setItem('civilsKash_last_ad_idx', nextIndex);
+                    return this.inventory[nextIndex];
+                },
+
+                triggerGoogleAds() {
+                    try {
+                        if(this.getNextType() === 'self') return; 
+                        const ads = document.querySelectorAll('.adsbygoogle');
+                        ads.forEach(ad => {
+                            if (ad.innerHTML.trim() === '') (window.adsbygoogle = window.adsbygoogle || []).push({});
+                        });
+                    } catch (e) { console.log("AdSense Trigger Error:", e); }
+                }
             },
 
             // --- DATA ENGINE (Fetch + Hardcoded) ---
@@ -1671,7 +1834,6 @@
                     // --- 1. FILTERING LOGIC ---
                     let itemsToShow = App.State.feed;
 
-                    // Filter by Search Term (Title or Summary)
                     if (term.length > 0) {
                         itemsToShow = itemsToShow.filter(item => {
                             const content = (item.title + ' ' + item.summary).toLowerCase();
@@ -1679,12 +1841,10 @@
                         });
                     }
 
-                    // Filter by Category
                     if (App.State.activeCategory !== 'all') {
                         itemsToShow = itemsToShow.filter(item => item.category === App.State.activeCategory);
                     }
 
-                    // Filter by Bookmarks
                     if (App.State.filterBookmarks) {
                         itemsToShow = itemsToShow.filter(item => App.State.bookmarks.has(item.id));
                     }
@@ -1692,13 +1852,8 @@
                     // --- 2. EMPTY STATE HANDLING ---
                     if (itemsToShow.length === 0) {
                         let msg = "No items found.";
-                        let icon = "📭"; // Mailbox for general empty
-                        
-                        // Specific message for search
-                        if (term.length > 0) {
-                            msg = `No results found for "${term}"`;
-                            icon = "🔍";
-                        }
+                        let icon = "📭"; 
+                        if (term.length > 0) { msg = `No results found for "${term}"`; icon = "🔍"; }
                         
                         container.innerHTML = `
                             <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); display:flex; flex-direction:column; align-items:center;">
@@ -1715,32 +1870,18 @@
                         const clozeStorage = [];
                         const hiddenClass = isHidden ? 'is-hidden' : '';
 
-                        // Step A: Protect Flashcards (Only needed for Summary)
                         if (isSummary) {
-                            // Find {{c1::Answer}} blocks
                             workingText = workingText.replace(/\{\{c\d+::(.*?)\}\}/g, (match, content) => {
-                                // Create the interactive HTML for the flashcard
                                 const clozeHtml = `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">${content}</span>`;
-                                
-                                // Store it safely
                                 clozeStorage.push(clozeHtml);
-                                
-                                // Replace with a unique, safe placeholder
                                 return `__PROTECTED_CLOZE_${clozeStorage.length - 1}__`;
                             });
                         }
-
-                        // Step B: Apply Search Highlight (Red)
                         if (query && query.length > 0) {
-                            // 1. Escape regex characters (e.g., prevent crash if user types "?")
                             const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            
-                            // 2. Wrap matching text in span
                             const regex = new RegExp(`(${safeQuery})`, 'gi');
                             workingText = workingText.replace(regex, '<span class="search-highlight">$1</span>');
                         }
-
-                        // Step C: Restore Flashcards
                         if (isSummary) {
                             clozeStorage.forEach((html, index) => {
                                 workingText = workingText.replace(`__PROTECTED_CLOZE_${index}__`, html);
@@ -1750,16 +1891,20 @@
                     };
 
                     // --- 4. RENDER LOOP ---
-                    container.innerHTML = itemsToShow.map((item, idx) => {
+                    let htmlBuffer = '';
+                    let cardCounter = 0;
+
+                    itemsToShow.forEach((item, idx) => {
+                        cardCounter++;
+                        
                         const hasImg = item.image && item.image.trim() !== '';
                         const isLiked = App.State.bookmarks.has(item.id);
                         const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
+                        const finalTitle = processSmartContent(item.title, term, false);
+                        const finalSummary = processSmartContent(item.summary, term, true);
 
-                        // Process Content safely
-                        const finalTitle = processSmartContent(item.title, term, false); // False = No cloze logic for titles
-                        const finalSummary = processSmartContent(item.summary, term, true); // True = Handle clozes
-
-                        return `
+                        // A. Render Standard Article
+                        htmlBuffer += `
                         <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}" 
                                 ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
                                 ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
@@ -1775,9 +1920,7 @@
                                         <span class="badge" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
                                         <span class="date">${item.date}</span>
                                     </div>
-                                    
                                     <h2>${finalTitle}</h2>
-                                    
                                     <p class="summary-box">${finalSummary}</p>
                                 </div>
 
@@ -1786,15 +1929,11 @@
                                         <button class="icon-btn" onclick="event.stopPropagation(); App.Actions.shareAsImage('${item.id}')" title="Share as Image">
                                             <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                         </button>
-                                        
                                         <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
-
                                         <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
                                             ${eyeIcon}
                                         </button>
-
                                         <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
-
                                         <button class="icon-btn ${isLiked?'liked':''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
                                             <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                                         </button>
@@ -1802,7 +1941,61 @@
                                 </div>
                             </div>
                         </article>`;
-                    }).join('');
+
+                        // B. AD INJECTION LOGIC (Every 8th card)
+                        if (cardCounter % 8 === 0 && idx !== itemsToShow.length - 1 && App.Ads) {
+                            
+                            const adType = App.Ads.getNextType();
+
+                            if (adType === 'google') {
+                                // --- GOOGLE AD RENDER ---
+                                // We wrap it in a card structure so it matches the feed aesthetic
+                                htmlBuffer += `
+                                <article class="news-card google-ad-unit">
+                                    <div class="ad-label-corner">Ad</div>
+                                    <div class="google-ad-wrapper">
+                                        <ins class="adsbygoogle"
+                                            style="display:block; width:100%;"
+                                            data-ad-client="${App.Ads.config.googleClientId}"
+                                            data-ad-slot="${App.Ads.config.googleSlotId}"
+                                            data-ad-format="auto"
+                                            data-full-width-responsive="true"></ins>
+                                    </div>
+                                </article>`;
+                            } else {
+                                // --- SELF AD RENDER ---
+                                const ad = App.Ads.getRotatedSelfAd();
+                                htmlBuffer += `
+                                <article class="news-card ad-unit" onclick="window.open('${ad.link}', '_blank')" style="cursor:pointer;">
+                                    <div class="scroll-content">
+                                        <div class="card-img" style="background-image: url('${ad.image}'); filter: grayscale(20%);"></div>
+                                        <div class="card-body">
+                                            <div class="meta-row">
+                                                <span class="badge" style="border:1px solid var(--text-muted); background:transparent; color:var(--text-muted);">RECOMMENDED</span>
+                                                <span class="date">Promoted</span>
+                                            </div>
+                                            <h2>${ad.title}</h2>
+                                            <p class="summary-box" style="opacity: 0.8;">${ad.summary}</p>
+                                        </div>
+                                        <div class="ad-cta-container">
+                                            <button class="ad-cta-btn">
+                                                ${ad.cta} 
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </article>`;
+                            }
+                        }
+                    });
+
+                    container.innerHTML = htmlBuffer;
+
+                    // --- C. TRIGGER AD LOAD ---
+                    // We must wait for the HTML to be in the DOM before telling Google to fill the slots
+                    setTimeout(() => {
+                        if(App.Ads) App.Ads.triggerGoogleAds();
+                    }, 100);
                 },
             },
             
@@ -1909,10 +2102,72 @@
                 }
             }
         };
+        // --- NEW: SHARE TARGET HANDLER ---
+        
+        // 1. Add the "Save" logic to your Actions module
+        App.Actions.saveSharedNote = async function() {
+            const title = document.getElementById('input-card-title').value;
+            const body = document.getElementById('input-card-body').value;
+            
+            if(!title || !body) return App.UI.toast("Please add text first");
 
+            // Create a new card object
+            const newCard = {
+                id: 'shared_' + Date.now(),
+                category: 'Shared',
+                title: title,
+                summary: body,
+                date: 'Just Now',
+                image: '', // Optional: Add a default image URL here if you want
+                tags: ['Shared']
+            };
+
+            // Add to Feed
+            App.State.feed.unshift(newCard); // Add to top
+            
+            // Save to Local DB (Persistence)
+            if(App.DB.isWorking) {
+                await App.DB.put('feed_cache', null, newCard); 
+            }
+
+            // Refresh UI
+            App.UI.closeModals();
+            App.UI.renderFeed();
+            App.UI.toast("Note Saved to Feed! ✅");
+            
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        };
+
+        // 2. The function to check URL parameters on startup
+        function checkShareTarget() {
+            const params = new URLSearchParams(window.location.search);
+            const sharedTitle = params.get('share_title');
+            const sharedText = params.get('share_text');
+            const sharedUrl = params.get('share_url');
+
+            if (sharedTitle || sharedText || sharedUrl) {
+                // Combine the text and URL cleanly
+                let finalBody = sharedText || '';
+                if (sharedUrl) finalBody += `\n\nSource: ${sharedUrl}`;
+
+                // Open the new modal
+                App.UI.openModal('modal-create-card');
+
+                // Fill the inputs (small delay to ensure modal is rendered)
+                setTimeout(() => {
+                    const titleInput = document.getElementById('input-card-title');
+                    const bodyInput = document.getElementById('input-card-body');
+                    
+                    if (titleInput) titleInput.value = sharedTitle || 'New Shared Note';
+                    if (bodyInput) bodyInput.value = finalBody;
+                }, 100);
+            }
+        }
         // Initialize App on DOM Ready
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            checkShareTarget();
         });
     </script>
     <script>
