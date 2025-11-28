@@ -969,7 +969,16 @@
     <div id="modal-settings" class="modal-backdrop">
         <div class="modal-card">
             <h2 style="margin-bottom:20px;">Settings</h2>
-            
+            <div class="setting-row">
+                <div>
+                    <span class="setting-label">Make your Note</span>
+                    <span class="setting-sub">Add a personal note/flashcard manually</span>
+                </div>
+                <button class="btn-small btn-primary" 
+                        onclick="document.getElementById('input-card-title').value=''; document.getElementById('input-card-body').value=''; App.UI.openModal('modal-create-card')">
+                    Create
+                </button>
+            </div>
             <div class="setting-row">
                 <div>
                     <span class="setting-label">App Theme</span>
@@ -1040,6 +1049,26 @@
                         onclick="App.System.executeHardRefresh()">
                     Yes, Update
                 </button>
+            </div>
+        </div>
+    </div>
+    <div id="modal-create-card" class="modal-backdrop">
+        <div class="modal-card">
+            <h2 style="margin-bottom:15px;">New Note 📝</h2>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block; color:var(--text-muted); font-size:0.8rem; margin-bottom:5px;">Title of Note</label>
+                <input type="text" id="input-card-title" class="search-input" placeholder="Topic..." style="padding-left:12px;">
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block; color:var(--text-muted); font-size:0.8rem; margin-bottom:5px;">Content of Note - (Use {{c1::cloze}} for creating flashcards e.g {{c1::keyword}})</label>
+                <textarea id="input-card-body" class="search-input" rows="6" placeholder="Paste text here..." style="padding:12px; height:auto; resize:vertical;"></textarea>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-large btn-outline" onclick="App.UI.closeModals()">Cancel</button>
+                <button class="btn-large btn-primary" onclick="App.Actions.saveSharedNote()">Save to Feed</button>
             </div>
         </div>
     </div>
