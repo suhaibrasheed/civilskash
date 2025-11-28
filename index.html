@@ -2131,8 +2131,8 @@
                 }
             }
         };
-        // --- NEW: SHARE TARGET HANDLER ---
         
+        // --- NEW: SHARE TARGET HANDLER ---
         // 1. Add the "Save" logic to your Actions module
         App.Actions.saveSharedNote = async function() {
             const title = document.getElementById('input-card-title').value;
@@ -2140,31 +2140,26 @@
             
             if(!title || !body) return App.UI.toast("Please add text first");
 
-            // Create a new card object
             const newCard = {
                 id: 'shared_' + Date.now(),
-                category: 'Shared',
+                category: 'Curated',  // <--- CHANGED THIS from 'Shared'
                 title: title,
                 summary: body,
                 date: 'Just Now',
-                image: '', // Optional: Add a default image URL here if you want
-                tags: ['Shared']
+                image: '', 
+                tags: ['Curated']     // <--- CHANGED THIS to match
             };
 
-            // Add to Feed
             App.State.feed.unshift(newCard); // Add to top
             
-            // Save to Local DB (Persistence)
             if(App.DB.isWorking) {
                 await App.DB.put('feed_cache', null, newCard); 
             }
 
-            // Refresh UI
             App.UI.closeModals();
             App.UI.renderFeed();
             App.UI.toast("Note Saved to Feed! ✅");
             
-            // Clean URL
             window.history.replaceState({}, document.title, window.location.pathname);
         };
 
