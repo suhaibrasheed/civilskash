@@ -1,21 +1,57 @@
 {
   "name": "CivilsKash Ultimate",
   "short_name": "CivilsKash",
+  "description": "The ultimate spaced repetition tool for Civil Services preparation. Master General Knowledge with smart flashcards.",
   "start_url": "./index.html",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#18181b",
-  "theme_color": "#2dd4bf",
+  "theme_color": "#18181b",
   "orientation": "portrait",
+  "categories": ["education", "productivity", "study"],
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "screen-mobile-1.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "screen-desktop-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Quiz",
+      "url": "./index.html?mode=quiz",
+      "description": "Jump straight into your daily revision test",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": {
+      "title": "share_title",
+      "text": "share_text",
+      "url": "share_url"
+    }
+  }
 }
