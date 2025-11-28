@@ -1190,53 +1190,81 @@
            Ads: {
                 globalAdCounter: 0,
                 
-                // CONFIGURATION
+                // CONFIGURATION - CONTROL CENTER
                 config: {
-                    ratio: 12, 
+                    adsEnabled: true, 
+                    useGoogleAds: false, 
+                    ratio: 8, 
                     googleClientId: 'ca-pub-9975373090727883', 
                     googleSlotId: '4503514490' 
                 },
 
-                // SELF PROMOTION INVENTORY (3 Distinct Ads)
+                // SELF PROMOTION INVENTORY
                 inventory: [
                     {
                         id: 'self_1',
-                        image: 'https://images.unsplash.com/photo-1555421689-491a97ff2040?auto=format&fit=crop&w=800&q=80',
+                        image: 'https://miro.medium.com/v2/resize:fit:1200/1*Ysj2J2neckgBRC4VBw7Idw.jpeg',
                         title: 'Master Your Focus',
-                        summary: 'Struggling to remember GK facts? Try the <b>Pomodoro 2.0</b> technique designed specifically for civil service aspirants.',
+                        summary: 'Struggling to remember GK facts? Try NoteKash Flashcard App, creating flashcards through SRS Algorithm will help you memorize facts in timely Interval',
                         cta: 'Learn Method',
-                        link: '#productivity'
+                        link: 'https://notekash.com'
                     },
                     {
                         id: 'self_2',
-                        image: 'https://images.unsplash.com/photo-1542601906-90da274fcffa?auto=format&fit=crop&w=800&q=80',
-                        title: 'Premium Mock Tests',
-                        summary: 'Get access to <b>50,000+ Previous Year Questions</b> with detailed analysis and AI-driven performance tracking.',
-                        cta: 'Start Free Trial',
+                        image: 'https://img.freepik.com/premium-photo/concept-time-clock-timer-generate-ai_272168-1923.jpg?w=2000',
+                        title: 'Go through Quiz',
+                        summary: 'Remember Current Affairs as you Read them, go through the Quiz mode of App to Recall important Highlights of Article Cards',
+                        cta: 'Start Memorizing Now',
                         link: '#tests'
                     },
                     {
                         id: 'self_3',
-                        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+                        image: 'https://static.vecteezy.com/system/resources/previews/029/290/771/large_2x/ai-generative-of-a-man-practicing-mindfulness-and-meditation-in-a-peaceful-natural-environment-sony-a7s-realistic-image-ultra-hd-high-design-very-detailed-free-photo.jpg',
                         title: 'Join NoteKash',
-                        summary: 'Sync your study notes across all devices. The ultimate companion app for serious aspirants.',
-                        cta: 'Download App',
+                        summary: 'Sync your study notes or convert your notes into Presentation. The ultimate note taking companion app for serious aspirants.',
+                        cta: 'Start your Journey',
                         link: 'https://notekash.com'
+                    },
+                    {
+                        id: 'self_4',
+                        image: 'https://tse2.mm.bing.net/th/id/OIP.DxEmmErx4eHANwcN4D8PFwHaE8?rs=1&pid=ImgDetMain&o=7&rm=3',
+                        title: 'Feedback is Essential?',
+                        summary: 'Your insights drive our roadmap. Share your thoughts and help us build your ultimate study companion. You can also contact us for Monthly Current Affairs Packages',
+                        cta: 'Contact Directly',
+                        link: 'mailto:learningmarvel@gmail.com?subject=CivilKash%20Feedback'
+                    },
+                    {
+                        id: 'self_5',
+                        image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=800&q=80',
+                        title: 'Fuel the Mission 🚀',
+                        summary: 'CivilsKash is a passion project built to keep quality education accessible. If this tool aids your preparation, a small contribution helps keep our servers alive and updates coming.',
+                        cta: 'Support the Dev ☕',
+                        link: 'upi://pay?pa=7006405127@ikwik&pn=SuhaibRashid&am=0&cu=INR' 
                     }
+
                 ],
 
+                // DECISION ENGINE
                 getNextType() {
+                    // 1. Safety Check: If master switch is off, return nothing
+                    if (!this.config.adsEnabled) return 'none';
+
                     this.globalAdCounter++;
-                    const isPlaceholder = this.config.googleClientId.includes('XXXXXXXXXXXXXXXX');
                     
+                    // 2. "No Blank Space" Logic:
+                    if (!this.config.useGoogleAds) return 'self';
+
+                    // 3. Standard Logic (only runs if Google is enabled)
+                    const isPlaceholder = this.config.googleClientId.includes('XXXXXXXXXXXXXXXX');
                     if (isPlaceholder) return 'self';
+                    
                     if (typeof window.adsbygoogle === 'undefined' && !document.querySelector('script[src*="adsbygoogle"]')) return 'self';
+                
                     if (this.globalAdCounter % this.config.ratio === 0) return 'self';
 
                     return 'google';
                 },
                 
-                // --- NEW LOGIC: ROTATION WITH MEMORY ---
                 getRotatedSelfAd() {
                     let lastIndex = parseInt(localStorage.getItem('civilsKash_last_ad_idx') || '-1');
                     let nextIndex = (lastIndex + 1) % this.inventory.length;
@@ -1245,6 +1273,9 @@
                 },
 
                 triggerGoogleAds() {
+                    // Safety: Don't trigger if disabled
+                    if (!this.config.adsEnabled || !this.config.useGoogleAds) return;
+
                     try {
                         if(this.getNextType() === 'self') return; 
                         const ads = document.querySelectorAll('.adsbygoogle');
@@ -1973,7 +2004,7 @@
                         </article>`;
 
                         // B. AD INJECTION LOGIC (Every 8th card)
-                        if (cardCounter % 8 === 0 && idx !== itemsToShow.length - 1 && App.Ads) {
+                        if (cardCounter % App.Ads.config.ratio === 0 && idx !== itemsToShow.length - 1 && App.Ads && App.Ads.getNextType() !== 'none') {  
                             
                             const adType = App.Ads.getNextType();
 
