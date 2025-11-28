@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "in.civilskash.twa",
+        "sha256_cert_fingerprints": ["09:D7:9F:8A:BD:12:40:CE:BB:C1:56:B6:07:3F:F4:C2:13:02:5D:5A:36:C8:62:94:98:A0:24:41:88:7D:75:30"]
+      }
+    }]
