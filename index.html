@@ -265,7 +265,7 @@
         /* =========================================
            5. MAIN FEED & CARDS
            ========================================= */
-        #app-container { height: 100%; width: 100%; overflow-y: auto; scroll-behavior: smooth; padding-top: var(--header-h); }
+        #app-container { height: 100%; width: 100%; overflow-y: auto; scroll-behavior: smooth; padding-top: var(--header-h); overscroll-behavior-y: contain; will-change: scroll-position; }
 
         @media (min-width: 769px) {
             #feed-list { 
@@ -1552,33 +1552,37 @@
                 },
 
                 touchStart(e) {
-                    // Only enable if we are at the very top of the scroll
-                    if (this.dom.container.scrollTop <= 0) {
+                    if (this.dom.container.scrollTop <= 5) { 
                         this.state.startY = e.touches[0].clientY;
-                        this.state.isRefreshing = false;
                         
-                        // Disable transition for instant drag response
-                        this.dom.zone.style.transition = 'none'; 
+                        if (!this.state.isRefreshing) {
+                            this.dom.zone.style.transition = 'none';
+                        }
                     }
                 },
 
                 touchMove(e) {
                     const y = e.touches[0].clientY;
+                  
                     const diff = y - this.state.startY;
-
-                    if (diff > 0 && this.dom.container.scrollTop <= 0) {
+                    if (diff < 0) {
+                        this.dom.zone.style.height = '0px';
+                        return; 
+                    }
+                    if (diff > 0 && this.dom.container.scrollTop <= 5 && !this.state.isRefreshing) {
                         
                         if (e.cancelable) e.preventDefault();
-                        this.state.dist = Math.pow(diff, 0.85); 
-                        
+
+                        this.state.dist = Math.pow(diff, 0.85); // Resistance math
+         
                         if(this.state.dist > 150) this.state.dist = 150;
 
                         this.dom.zone.style.height = `${this.state.dist}px`;
                         this.dom.zone.classList.add('visible');
 
                         if (this.state.dist > this.state.threshold) {
-                            this.dom.arrow.classList.add('rotate'); // Cue to release
-                            if(navigator.vibrate) navigator.vibrate(5); // Micro-haptic
+                            this.dom.arrow.classList.add('rotate');
+                            if(navigator.vibrate) navigator.vibrate(5); 
                         } else {
                             this.dom.arrow.classList.remove('rotate');
                         }
@@ -1589,30 +1593,33 @@
                     this.dom.zone.style.transition = 'height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 
                     if (this.state.dist > this.state.threshold) {
-                        
                         this.state.isRefreshing = true;
-                        this.dom.zone.style.height = '60px'; // Snap to loading height
-                        
-                   
+                        this.dom.zone.style.height = '60px';
                         this.dom.arrow.style.display = 'none';
                         this.dom.spinner.style.display = 'block';
 
-                        await App.Data.forceUpdate(); 
-                        
-                        setTimeout(() => this.reset(), 1000); 
+                        try {
+                            await App.Data.forceUpdate(); 
+                        } catch (err) {
+                            console.warn("PTR Update failed", err);
+                        } finally {
+                            // Wait a tiny bit so the user sees the spinner, then reset
+                            setTimeout(() => this.reset(), 800);
+                        }
 
                     } else {
                         this.dom.zone.style.height = '0px';
                         this.dom.zone.classList.remove('visible');
+                        this.state.dist = 0;
+                        this.state.startY = 0;
                     }
-                    
-                    this.state.dist = 0;
-                    this.state.startY = 0;
                 },
 
                 reset() {
                     this.dom.zone.style.height = '0px';
                     this.dom.zone.classList.remove('visible');
+                    this.state.isRefreshing = false; 
+                
                     setTimeout(() => {
                         this.dom.arrow.style.display = 'block';
                         this.dom.arrow.classList.remove('rotate');
@@ -1779,7 +1786,7 @@
                             // 2. Reload everything from DB + Hardcoded to get clean state
                             App.State.feed = await this.loadLocal();
                             App.UI.renderFeed();
-                            App.UI.toast("Update Successful ");
+                            App.UI.toast("Feed Updated ⚡️");
                         } else {
                             App.UI.toast("No changes or Offline");
                         }
