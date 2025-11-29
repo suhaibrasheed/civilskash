@@ -438,7 +438,7 @@
         }
 
         /* =========================================
-           6. 3D QUIZ SYSTEM (The Core Feature)
+           6. 3D QUIZ SYSTEM (PREMIUM & FLIP RESTORED)
            ========================================= */
         #quiz-fullscreen-layer {
             position: fixed; inset: 0; z-index: 2000;
@@ -466,56 +466,112 @@
             transition: width 0.5s ease;
         }
 
+        /* THE STAGE: Sets the 3D environment */
         .quiz-stage {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            padding: 20px; perspective: 1500px; /* Essential for 3D flip */
+            padding: 20px; 
+            perspective: 2000px; /* Deep perspective for premium 3D feel */
             overflow: hidden; 
         }
 
+        /* THE CARD OBJECT */
         .quiz-card-wrapper {
             width: 100%; max-width: 600px; 
             height: 100%; max-height: 75vh; min-height: 400px;
             position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d; /* Crucial for Flip */
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1); 
+            transform: translateX(0) rotateY(0deg) scale(1);
             margin-bottom: 20px;
         }
-        .quiz-card-wrapper.is-flipped { transform: rotateY(180deg); }
+        
+        /* STATE: FLIPPED (The rotation) */
+        .quiz-card-wrapper.is-flipped {
+            transform: translateX(0) rotateY(180deg);
+        }
 
+        /* ANIMATION: SWIPE LEFT (Exit to Next) */
+        .card-exit-left {
+            animation: swipeOut 0.4s forwards cubic-bezier(0.55, 0.085, 0.68, 0.53);
+        }
+        @keyframes swipeOut {
+            0% { transform: translateX(0) rotateY(0deg) scale(1); opacity: 1; }
+            100% { transform: translateX(-120%) rotateY(-20deg) scale(0.9); opacity: 0; }
+        }
+
+        /* ANIMATION: STACK REVEAL (Enter from bottom/back) */
+        .card-enter-stack {
+            animation: stackIn 0.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes stackIn {
+            0% { transform: translateY(40px) scale(0.9); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        /* DEFAULT STATE (Reset) */
+        .card-center-active {
+            transform: translateX(0) rotateY(0deg);
+            opacity: 1;
+        }
+
+        /* THE VISUAL FACES (Front & Back) */
         .quiz-face {
             position: absolute; inset: 0;
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
-            background: var(--bg-card);
+            
+            /* Premium Surface */
+            background: linear-gradient(145deg, var(--bg-card), var(--bg-body));
             border-radius: 32px;
-            border: 1px solid var(--border-glass);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            
+            /* Glassy Borders for depth */
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            
+            /* Deep Diffused Shadow */
+            box-shadow: 
+                0 20px 50px -10px rgba(0,0,0,0.5),
+                0 10px 20px -10px rgba(0,0,0,0.3);
+                
             display: flex; flex-direction: column;
             overflow: hidden;
         }
+
+        /* Rotate back face so it's ready for the flip */
         .quiz-back { transform: rotateY(180deg); }
 
         .quiz-scroll-area {
             flex: 1; overflow-y: auto; padding: 40px;
             display: flex; flex-direction: column;
+            /* Hide Scrollbar for cleaner look */
+            scrollbar-width: none; 
         }
+        .quiz-scroll-area::-webkit-scrollbar { display: none; }
         
         .quiz-question-text {
-            font-family: var(--font-read); font-size: 1.5rem; line-height: 1.8;
+            font-family: var(--font-read); font-size: 1.6rem; line-height: 1.6;
             color: var(--text-main); text-align: left;
             margin-top: auto; margin-bottom: auto; padding-top: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Slight text pop */
         }
 
         .quiz-actions-area {
-            padding: 24px; border-top: 1px solid var(--border-glass);
-            background: var(--bg-card);
+            padding: 24px; 
+            border-top: 1px solid var(--border-glass);
+            background: var(--bg-card); 
             flex-shrink: 0;
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
         }
 
+        /* CLOZE STYLING */
         .quiz-mask {
             background: var(--quiz-mask); color: transparent;
-            border-radius: 6px; padding: 2px 10px; margin: 0 4px;
+            border-radius: 6px; padding: 2px 12px; margin: 0 4px;
             display: inline-block; border: 1px dashed var(--text-muted);
             vertical-align: middle; min-width: 60px; position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
         .quiz-mask::after {
             content: '?'; color: var(--text-muted);
@@ -524,27 +580,36 @@
         }
         .quiz-revealed {
             color: var(--primary); font-weight: 800;
-            background: var(--highlight-bg); padding: 2px 8px; border-radius: 4px;
-            animation: fadeIn 0.5s ease;
+            background: var(--highlight-bg); padding: 4px 10px; border-radius: 6px;
+            animation: highlightPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-block;
         }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes highlightPop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* SRS Buttons */
-        .srs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        /* BUTTONS */
+        .srs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .srs-btn {
-            padding: 12px; border-radius: 12px; border: none; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            transition: transform 0.2s; background: var(--bg-body); border: 1px solid var(--border-glass);
+            padding: 14px 10px; border-radius: 16px; border: none; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            transition: all 0.2s; 
+            background: var(--bg-body); 
+            border: 1px solid var(--border-glass);
             color: var(--text-main);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        .srs-btn:hover { transform: translateY(-3px); background: var(--border-glass); }
-        .srs-btn span:first-child { font-weight: 700; font-size: 0.9rem; }
-        .srs-btn span:last-child { font-size: 0.7rem; color: var(--text-muted); }
+        .srs-btn:hover { 
+            transform: translateY(-4px); 
+            background: var(--bg-card); 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2); 
+        }
+        .srs-btn:active { transform: scale(0.95); }
+        .srs-btn span:first-child { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px; }
+        .srs-btn span:last-child { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; }
         
-        .srs-again { border-bottom: 3px solid var(--red); }
-        .srs-hard { border-bottom: 3px solid var(--orange); }
-        .srs-good { border-bottom: 3px solid var(--blue); }
-        .srs-easy { border-bottom: 3px solid var(--green); }
+        .srs-again { border-bottom: 4px solid var(--red); }
+        .srs-hard { border-bottom: 4px solid var(--orange); }
+        .srs-good { border-bottom: 4px solid var(--blue); }
+        .srs-easy { border-bottom: 4px solid var(--green); }
 
         #quiz-summary {
             position: absolute; inset: 0; background: var(--bg-overlay); z-index: 5;
@@ -552,6 +617,7 @@
             animation: fadeIn 0.5s;
         }
         #quiz-summary.visible { display: flex; }
+
 
         /* =========================================
            7. MODALS, CHIPS & SETTINGS
@@ -1119,7 +1185,7 @@
             <button class="btn-large btn-primary" onclick="App.Quiz.startTest()">
                 <div style="text-align:left; flex:1;">
                     <div>Daily Mastery</div>
-                    <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">4 New, 3 Again, 2 Hard, 1 Revision</div>
+                    <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">Start bucket learning process</div>
                 </div>
                 <span>🏆</span>
             </button>
@@ -2129,140 +2195,305 @@
                 }
             },
 
-            // --- QUIZ & SRS ENGINE ---
+            // --- ADVANCED QUIZ & SRS ENGINE ---
             Quiz: {
-                getFilteredDeck() {
-                    let items = App.State.feed;
-                    if(App.State.activeCategory !== 'all') items = items.filter(i => i.category === App.State.activeCategory);
-                    if(App.State.filterBookmarks) items = items.filter(i => App.State.bookmarks.has(i.id));
-                    return items;
+                // Session State
+                session: {
+                    mode: null,      // 'test' or 'practice'
+                    deck: [],        // The active cards
+                    pointer: 0,      // Current card index
+                    stats: { new: 0, learning: 0, review: 0, score: 0 },
+                    isAnimating: false 
+                },
+
+                // 1. ATOMIC PARSER
+                _createAtomicCards(item) {
+                    if (!item.summary) return [];
+                    const chunks = item.summary.split(/<br\s*\/?>|\n\n/i);
+                    const cards = [];
+                    
+                    chunks.forEach((chunk, index) => {
+                        if (chunk.includes('{{c')) {
+                            const subId = `${item.id}_part_${index}`;
+                            const regex = /\{\{c\d+::(.*?)\}\}/g;
+                            
+                            cards.push({
+                                id: subId,
+                                parentId: item.id,
+                                category: item.category,
+                                front: chunk.replace(regex, '<span class="quiz-mask"></span>'),
+                                back: chunk.replace(regex, '<span class="quiz-revealed">$1</span>'),
+                                raw: chunk
+                            });
+                        }
+                    });
+                    return cards;
+                },
+
+                // 2. THE SMART BUCKET ALGORITHM
+                generateDeck(mode) {
+                    let allCards = App.State.feed.flatMap(item => this._createAtomicCards(item));
+
+                    if (mode === 'practice') {
+                        if (App.State.activeCategory !== 'all') {
+                            allCards = allCards.filter(c => c.category === App.State.activeCategory);
+                        }
+                        if (App.State.filterBookmarks) {
+                            allCards = allCards.filter(c => App.State.bookmarks.has(c.parentId));
+                        }
+                    }
+
+                    if (allCards.length === 0) return [];
+
+                    // Bucketing
+                    const buckets = { new: [], learning: [], review: [] };
+
+                    allCards.forEach(card => {
+                        const data = App.State.srsData[card.id];
+                        if (!data) {
+                            buckets.new.push(card);
+                        } else if (data.status === 'again' || data.status === 'hard') {
+                            buckets.learning.push({ ...card, lastReview: data.lastReview });
+                        } else {
+                            buckets.review.push({ ...card, lastReview: data.lastReview });
+                        }
+                    });
+
+                    // Sorting
+                    buckets.new.sort(() => 0.5 - Math.random());
+                    const sortByDate = (a, b) => a.lastReview - b.lastReview;
+                    buckets.learning.sort(sortByDate);
+                    buckets.review.sort(sortByDate);
+
+                    // Composition
+                    let finalDeck = [];
+                    const TARGET_SIZE = 10;
+                    const quota = { new: 4, learning: 4, review: 2 };
+
+                    const take = (bucketName, count) => {
+                        const extracted = buckets[bucketName].splice(0, count);
+                        finalDeck = finalDeck.concat(extracted);
+                        return count - extracted.length; 
+                    };
+
+                    let deficit = 0;
+                    deficit += take('new', quota.new);
+                    deficit += take('learning', quota.learning);
+                    deficit += take('review', quota.review);
+
+                    // Smart Backfill
+                    if (deficit > 0 && finalDeck.length < TARGET_SIZE) {
+                        while (buckets.learning.length > 0 && finalDeck.length < TARGET_SIZE) finalDeck.push(buckets.learning.shift());
+                        while (buckets.new.length > 0 && finalDeck.length < TARGET_SIZE) finalDeck.push(buckets.new.shift());
+                        while (buckets.review.length > 0 && finalDeck.length < TARGET_SIZE) finalDeck.push(buckets.review.shift());
+                    }
+
+                    return finalDeck.sort(() => 0.5 - Math.random());
+                },
+
+                // 3. START ENGINE
+                startTest() {
+                    const deck = this.generateDeck('test');
+                    if (deck.length === 0) return App.UI.toast("No flashcards found available!");
+                    this._initSession('test', deck);
                 },
 
                 startPractice() {
-                    const deck = this.getFilteredDeck().map(i => this._createCardObj(i));
-                    if(deck.length === 0) return App.UI.toast("No cards match current filters.");
+                    const deck = this.generateDeck('practice');
+                    if (deck.length === 0) return App.UI.toast("No cards match current filters.");
                     this._initSession('practice', deck);
                 },
 
-                startTest() {
-                    // Weighted Algorithm
-                    const buckets = { new: [], again: [], hard: [], good: [], easy: [] };
-                    App.State.feed.forEach(item => {
-                        const data = App.State.srsData[item.id];
-                        const status = data ? data.status : 'new';
-                        if(buckets[status]) buckets[status].push(item); else buckets.new.push(item);
-                    });
-
-                    let deck = [];
-                    const pull = (source, count) => {
-                        const shuffled = source.sort(() => 0.5 - Math.random());
-                        const taken = shuffled.slice(0, count);
-                        deck.push(...taken);
-                        return count - taken.length;
+                _initSession(mode, deck) {
+                    this.session = {
+                        mode: mode, deck: deck, pointer: 0,
+                        stats: { new: 0, learning: 0, review: 0, score: 0 },
+                        isAnimating: false
                     };
 
-                    let needNew = 4;
-                    needNew += pull(buckets.again, 3);
-                    needNew += pull(buckets.hard, 2);
-                    needNew += pull([...buckets.good, ...buckets.easy], 1);
-                    pull(buckets.new, needNew);
-                    
-                    if (deck.length < 5 && App.State.feed.length > 0) { 
-                        const used = new Set(deck.map(d=>d.id));
-                        deck.push(...App.State.feed.filter(i=>!used.has(i.id)).slice(0, 10 - deck.length));
-                    }
-                    
-                    const finalDeck = deck.slice(0, 10).map(i => this._createCardObj(i)).sort(() => 0.5 - Math.random());
-                    if (finalDeck.length === 0) return App.UI.toast("No cards available.");
-                    this._initSession('test', finalDeck);
-                },
-
-                _createCardObj(item) {
-                    const regex = /\{\{c\d+::(.*?)\}\}/g;
-                    const frontHtml = item.summary.replace(regex, '<span class="quiz-mask"></span>');
-                    const backHtml = item.summary.replace(regex, '<span class="quiz-revealed">$1</span>');
-                    return { id: item.id, front: frontHtml, back: backHtml };
-                },
-
-                _initSession(mode, deck) {
-                    App.State.quiz = { mode, deck, index: 0, currentScore: 0 };
                     App.UI.closeModals();
-                    document.getElementById('quiz-fullscreen-layer').classList.add('active'); 
-                    document.getElementById('quiz-header-label').innerText = mode === 'test' ? 'DAILY TEST' : 'PRACTICE';
-                    document.getElementById('quiz-summary').classList.remove('visible'); 
-                    this._renderCard();
+                    document.getElementById('quiz-fullscreen-layer').classList.add('active');
+                    
+                    const title = mode === 'test' ? 'DAILY MASTERY' : 'PRACTICE SET';
+                    document.getElementById('quiz-header-label').innerHTML = `<span style="color:var(--primary)">●</span> ${title}`;
+                    document.getElementById('quiz-summary').classList.remove('visible');
+                    
+                    this._renderCard(false);
                 },
 
-                _renderCard() {
-                    const q = App.State.quiz;
-                    if(q.index >= q.deck.length) return this._finishSession();
+                // 4. RENDERING & ANIMATION
+                _renderCard(animate = true) {
+                    const s = this.session;
+                    if (s.pointer >= s.deck.length) return this._finishSession();
 
-                    const card = q.deck[q.index];
+                    const card = s.deck[s.pointer];
                     const wrapper = document.getElementById('quiz-card-wrapper');
-                    wrapper.classList.remove('is-flipped');
+                    const progressBar = document.getElementById('quiz-progress-bar');
                     
-                    document.getElementById('fc-front-text').innerHTML = card.front;
-                    document.getElementById('fc-back-text').innerHTML = card.back;
-                    document.getElementById('quiz-progress-bar').style.width = `${((q.index)/q.deck.length)*100}%`;
+                    const setupText = () => {
+                        document.getElementById('fc-front-text').innerHTML = card.front;
+                        document.getElementById('fc-back-text').innerHTML = card.back;
+                        wrapper.classList.remove('is-flipped'); 
+                        
+                        const footer = document.getElementById('quiz-back-controls');
+                        if (s.mode === 'test') {
+                            footer.innerHTML = `
+                                <div class="srs-grid">
+                                    <button class="srs-btn srs-again" onclick="App.Quiz.rate('again', 0)"><span>Again</span><span>Fail</span></button>
+                                    <button class="srs-btn srs-hard" onclick="App.Quiz.rate('hard', 0.5)"><span>Hard</span><span>Tough</span></button>
+                                    <button class="srs-btn srs-good" onclick="App.Quiz.rate('good', 0.8)"><span>Good</span><span>Okay</span></button>
+                                    <button class="srs-btn srs-easy" onclick="App.Quiz.rate('easy', 1.0)"><span>Easy</span><span>Perf</span></button>
+                                </div>`;
+                        } else {
+                            footer.innerHTML = `
+                                    <div style="display:flex; gap:10px; width:100%;">
+                                    <button class="btn-large btn-outline" style="flex:1" onclick="App.Quiz.nav(-1)">Prev</button>
+                                    <button class="btn-large btn-primary" style="flex:1" onclick="App.Quiz.nav(1)">Next</button>
+                                </div>`;
+                        }
+                    };
 
-                    const footer = document.getElementById('quiz-back-controls');
-                    if (q.mode === 'test') {
-                        footer.innerHTML = `
-                            <div class="srs-grid">
-                                <button class="srs-btn srs-again" onclick="App.Quiz.rate('again', 0)"><span>Again</span><span>0 pts</span></button>
-                                <button class="srs-btn srs-hard" onclick="App.Quiz.rate('hard', 0.5)"><span>Hard</span><span>0.5 pts</span></button>
-                                <button class="srs-btn srs-good" onclick="App.Quiz.rate('good', 0.8)"><span>Good</span><span>0.8 pts</span></button>
-                                <button class="srs-btn srs-easy" onclick="App.Quiz.rate('easy', 1.0)"><span>Easy</span><span>1.0 pts</span></button>
-                            </div>`;
+                    const progress = ((s.pointer) / s.deck.length) * 100;
+                    progressBar.style.width = `${progress}%`;
+
+                    if (animate) {
+                        // New "Stack" logic
+                        wrapper.classList.remove('card-center-active');
+                        wrapper.classList.add('card-enter-stack'); // Scales up from behind
+                        
+                        setupText();
+
+                        requestAnimationFrame(() => {
+                            setTimeout(() => {
+                                wrapper.classList.remove('card-enter-stack');
+                                wrapper.classList.add('card-center-active');
+                                s.isAnimating = false;
+                            }, 350);
+                        });
                     } else {
-                        footer.innerHTML = `
-                             <div style="display:flex; gap:10px;">
-                                <button class="btn-large btn-outline" onclick="App.Quiz.nav(-1)">← Prev</button>
-                                <button class="btn-large btn-outline" onclick="App.Quiz.nav(1)">Next →</button>
-                            </div>`;
+                        setupText();
+                        wrapper.classList.add('card-center-active');
+                        s.isAnimating = false;
                     }
                 },
 
-                flip() { document.getElementById('quiz-card-wrapper').classList.add('is-flipped'); },
+                // 5. INTERACTION
+                flip() {
+                    const wrapper = document.getElementById('quiz-card-wrapper');
+                    wrapper.classList.add('is-flipped');
+                },
 
                 async rate(status, points) {
-                    const q = App.State.quiz;
-                    const card = q.deck[q.index];
-                    q.currentScore += points;
-                    App.State.srsData[card.id] = { status: status, lastReview: Date.now() };
+                    if (this.session.isAnimating) return;
+                    
+                    const s = this.session;
+                    const card = s.deck[s.pointer];
+                    
+                    s.stats.score += points;
+                    App.State.srsData[card.id] = { status: status, lastReview: Date.now(), parentId: card.parentId };
                     await App.DB.put('srs_data', null, { id: card.id, ...App.State.srsData[card.id] });
+
                     this.nav(1);
                 },
 
                 nav(dir) {
-                    const q = App.State.quiz;
-                    if (dir === 1) { q.index++; this._renderCard(); } 
-                    else if (dir === -1 && q.index > 0) { q.index--; this._renderCard(); }
+                    if (this.session.isAnimating) return;
+
+                    const s = this.session;
+                    const wrapper = document.getElementById('quiz-card-wrapper');
+
+                    if (dir === 1) {
+                        // NEXT
+                        this.session.isAnimating = true;
+                        wrapper.classList.remove('card-center-active');
+                        wrapper.classList.add('card-exit-left'); // Swipe Away
+
+                        setTimeout(() => {
+                            wrapper.classList.remove('card-exit-left');
+                            s.pointer++;
+                            this._renderCard(true);
+                        }, 300); 
+                    } 
+                    else if (dir === -1 && s.pointer > 0) {
+                        // PREV
+                        s.pointer--;
+                        this._renderCard(false);
+                    }
                 },
 
+                // 6. SUMMARY & ANALYSIS (FIXED FOR PRACTICE MODE)
                 _finishSession() {
-                    const q = App.State.quiz;
+                    const s = this.session;
                     document.getElementById('quiz-progress-bar').style.width = '100%';
-                    const scoreDisplay = document.getElementById('quiz-final-score');
-                    const msgDisplay = document.getElementById('quiz-summary-text');
+                    const summaryContainer = document.getElementById('quiz-summary');
+                    const scorePct = Math.round((s.stats.score / s.deck.length) * 100) || 0;
                     
-                    if (q.mode === 'test') {
-                        const finalScore = q.currentScore.toFixed(1);
-                        scoreDisplay.innerText = `${finalScore} / ${q.deck.length}`;
-                        scoreDisplay.style.display = 'block';
-                        if(finalScore > (q.deck.length * 0.8)) msgDisplay.innerText = "Outstanding! 🌟";
-                        else if(finalScore > (q.deck.length * 0.5)) msgDisplay.innerText = "Good Job! Keep going. 💪";
-                        else msgDisplay.innerText = "Review Needed. 📚";
-                    } else {
-                        scoreDisplay.style.display = 'none';
-                        msgDisplay.innerText = "Practice Session Complete";
+                    let contentHtml = '';
+
+                    if (s.mode === 'practice') {
+                        // --- PRACTICE MODE RESULT (No Score, Re-Practice Button) ---
+                        contentHtml = `
+                        <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
+                            <div style="font-size:4rem; margin-bottom:10px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));">📚</div>
+                            <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">Review Complete</h2>
+                            <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">You reviewed ${s.deck.length} flashcards.</p>
+                            
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+                                <button class="btn-large btn-primary" onclick="App.Quiz.startPractice()">
+                                    <span>Practice Again</span> <span>↻</span>
+                                </button>
+                                <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
+                                    Return to Feed
+                                </button>
+                            </div>
+                        </div>`;
+                    } 
+                    else {
+                        // --- TEST MODE RESULT (Score, Daily Test Button) ---
+                        let emoji = '🤔'; let title = 'Keep Learning'; let msg = `You completed ${s.deck.length} cards.`;
+                        if(scorePct > 90) { emoji = '🔥'; title = 'Master Class!'; msg = 'Incredible retention.'; }
+                        else if(scorePct > 70) { emoji = '🎉'; title = 'Great Job!'; msg = 'Solid performance.'; }
+                        else if(scorePct > 40) { emoji = '👍'; title = 'Good Effort'; msg = 'Getting there.'; }
+
+                        contentHtml = `
+                        <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
+                            <div style="font-size:4rem; margin-bottom:10px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));">${emoji}</div>
+                            <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">${title}</h2>
+                            <div style="font-size:3.5rem; color:var(--text-main); font-weight:800; margin: 10px 0; font-family:var(--font-ui);">${scorePct}%</div>
+                            <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">${msg}</p>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px;">
+                                <div style="background:var(--bg-card); padding:10px; border-radius:12px; border:1px solid var(--border-glass);">
+                                    <div style="font-size:0.8rem; color:var(--text-muted);">Cards</div>
+                                    <div style="font-weight:700; font-size:1.2rem;">${s.deck.length}</div>
+                                </div>
+                                <div style="background:var(--bg-card); padding:10px; border-radius:12px; border:1px solid var(--border-glass);">
+                                    <div style="font-size:0.8rem; color:var(--text-muted);">Accuracy</div>
+                                    <div style="font-weight:700; font-size:1.2rem;">${scorePct}%</div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+                                <button class="btn-large btn-primary" onclick="App.Quiz.startTest()">
+                                    <span>Start New Session</span> <span>↻</span>
+                                </button>
+                                <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
+                                    Return to Feed
+                                </button>
+                            </div>
+                        </div>`;
                     }
-                    document.getElementById('quiz-summary').classList.add('visible');
+
+                    summaryContainer.innerHTML = contentHtml;
+                    summaryContainer.classList.add('visible');
                 },
 
                 exit() {
                     document.getElementById('quiz-fullscreen-layer').classList.remove('active');
-                    App.State.quiz.deck = [];
+                    this.session.deck = [];
+                    this.session.isAnimating = false;
+                    const wrapper = document.getElementById('quiz-card-wrapper');
+                    wrapper.classList.remove('card-exit-left', 'card-center-active', 'card-enter-stack', 'is-flipped');
                 }
             },
 
