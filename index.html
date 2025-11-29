@@ -1524,7 +1524,7 @@
                 }
             },
 
-            // --- PULL TO REFRESH ENGINE ---
+            // --- PULL TO REFRESH ENGINE (Fixed: Intent Gating) ---
             PTR: {
                 dom: {
                     container: null,
@@ -1535,8 +1535,9 @@
                 state: {
                     startY: 0,
                     dist: 0,
-                    threshold: 80, // Pixels to pull to trigger
-                    isRefreshing: false
+                    threshold: 80, 
+                    isRefreshing: false,
+                    canPull: false 
                 },
 
                 init() {
@@ -1545,35 +1546,32 @@
                     this.dom.arrow = document.getElementById('ptr-arrow');
                     this.dom.spinner = document.getElementById('ptr-spinner');
 
-                    // Attach Touch Events
                     this.dom.container.addEventListener('touchstart', (e) => this.touchStart(e), { passive: false });
                     this.dom.container.addEventListener('touchmove', (e) => this.touchMove(e), { passive: false });
                     this.dom.container.addEventListener('touchend', () => this.touchEnd());
                 },
 
                 touchStart(e) {
-                    if (this.dom.container.scrollTop <= 5) { 
-                        this.state.startY = e.touches[0].clientY;
-                        
-                        if (!this.state.isRefreshing) {
-                            this.dom.zone.style.transition = 'none';
-                        }
+                    this.state.startY = e.touches[0].clientY;
+                    this.state.dist = 0;
+
+                    if (this.dom.container.scrollTop <= 1 && !this.state.isRefreshing) {
+                        this.state.canPull = true;
+                        this.dom.zone.style.transition = 'none'; 
+                    } else {
+                        this.state.canPull = false;
                     }
                 },
 
                 touchMove(e) {
+                    if (!this.state.canPull || this.state.isRefreshing) return;
+
                     const y = e.touches[0].clientY;
-                  
                     const diff = y - this.state.startY;
-                    if (diff < 0) {
-                        this.dom.zone.style.height = '0px';
-                        return; 
-                    }
-                    if (diff > 0 && this.dom.container.scrollTop <= 5 && !this.state.isRefreshing) {
-                        
+                    if (diff > 0) {
                         if (e.cancelable) e.preventDefault();
 
-                        this.state.dist = Math.pow(diff, 0.85); // Resistance math
+                        this.state.dist = Math.pow(diff, 0.85); 
          
                         if(this.state.dist > 150) this.state.dist = 150;
 
@@ -1582,19 +1580,29 @@
 
                         if (this.state.dist > this.state.threshold) {
                             this.dom.arrow.classList.add('rotate');
-                            if(navigator.vibrate) navigator.vibrate(5); 
+                            if(navigator.vibrate && !this.dom.arrow.dataset.vibrated) { 
+                                navigator.vibrate(5); 
+                                this.dom.arrow.dataset.vibrated = "true"; // Debounce vibration
+                            }
                         } else {
                             this.dom.arrow.classList.remove('rotate');
+                            this.dom.arrow.dataset.vibrated = "";
                         }
+                    } else {
+                        this.dom.zone.style.height = '0px';
                     }
                 },
 
                 async touchEnd() {
+                    this.state.canPull = false; 
+                    this.dom.arrow.dataset.vibrated = "";
+
                     this.dom.zone.style.transition = 'height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 
                     if (this.state.dist > this.state.threshold) {
+                        // A. Trigger Refresh
                         this.state.isRefreshing = true;
-                        this.dom.zone.style.height = '60px';
+                        this.dom.zone.style.height = '60px'; // Snap to loading height
                         this.dom.arrow.style.display = 'none';
                         this.dom.spinner.style.display = 'block';
 
@@ -1603,7 +1611,6 @@
                         } catch (err) {
                             console.warn("PTR Update failed", err);
                         } finally {
-                            // Wait a tiny bit so the user sees the spinner, then reset
                             setTimeout(() => this.reset(), 800);
                         }
 
@@ -1611,7 +1618,6 @@
                         this.dom.zone.style.height = '0px';
                         this.dom.zone.classList.remove('visible');
                         this.state.dist = 0;
-                        this.state.startY = 0;
                     }
                 },
 
@@ -1619,6 +1625,7 @@
                     this.dom.zone.style.height = '0px';
                     this.dom.zone.classList.remove('visible');
                     this.state.isRefreshing = false; 
+                    this.state.dist = 0;
                 
                     setTimeout(() => {
                         this.dom.arrow.style.display = 'block';
