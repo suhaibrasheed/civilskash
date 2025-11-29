@@ -679,6 +679,152 @@
             height: auto !important;
         }
 
+        /* DESKTOP LAYOUT ENGINE (NEW)*/
+        @media (min-width: 1024px) {
+            /* 1. Main Container */
+            #feed-list.layout-paper {
+                display: block;
+                max-width: 100%;
+                margin: 0;
+                padding: 40px;
+                background: var(--bg-body);
+            }
+
+            /* 2. The Card (Viewport Window) */
+            #feed-list.layout-paper .news-card {
+                width: 100%;
+                max-width: 1150px;
+                height: 80vh; /* Fixed height relative to screen */
+                margin: 0 auto 80px auto;
+                
+                background: var(--bg-card);
+                border: 1px solid var(--border-glass);
+                border-radius: 20px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                
+                /* Reset any transforms */
+                transform: none !important;
+                /* Do NOT hide overflow here, let the child handle it */
+                overflow: hidden; 
+            }
+
+            /* 3. The Layout Engine (Grid) */
+            #feed-list.layout-paper .scroll-content {
+                display: grid;
+                width: 100%;
+                height: 100%;
+                
+                /* 40% Image | 60% Content (Requested Split) */
+                grid-template-columns: 40% 60%;
+                
+                /* Allow rows to form naturally */
+                grid-auto-rows: min-content;
+                
+                /* THIS IS THE SCROLLER */
+                overflow-y: auto; 
+                scroll-behavior: smooth;
+            }
+
+            /* 4. LEFT PANE: Sticky Image */
+            #feed-list.layout-paper .card-img {
+                /* Place in Column 1, Span ALL Rows to cover full height */
+                grid-column: 1;
+                grid-row: 1 / span 10; 
+                
+                /* STICKY MAGIC: Pinned to the visual top of the scroller */
+                position: sticky;
+                top: 0;
+                left: 0;
+                
+                /* Force dimensions */
+                width: 100%;
+                height: 80vh; /* Match the card height exactly */
+                
+                /* Visuals */
+                object-fit: cover;
+                border-radius: 0;
+                border-right: 1px solid var(--border-glass);
+                margin: 0;
+                z-index: 2;
+            }
+
+            /* 5. RIGHT PANE: Content Flow */
+            #feed-list.layout-paper .card-body {
+                grid-column: 2;
+                /* Natural flow: Text comes first */
+                
+                padding: 60px 60px 20px 60px;
+                width: 100%;
+                
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start; /* Ensure top align */
+            }
+
+            /* 6. RIGHT PANE: Toolbar (Flows naturally after text) */
+            #feed-list.layout-paper .action-toolbar-container {
+                grid-column: 2;
+                padding: 20px 60px 60px 60px; 
+                width: 100%;
+                display: flex; 
+                justify-content: flex-end; 
+                background: transparent;
+                border: none;
+            }
+
+            /* --- Styling Polish --- */
+            #feed-list.layout-paper .action-toolbar {
+                margin: 0; /* Align Left */
+                width: fit-content;
+                background: var(--bg-body);
+                border: 1px solid var(--border-glass);
+            }
+
+            #feed-list.layout-paper h2 {
+                font-family: var(--font-read);
+                font-size: 2.6rem;
+                line-height: 1.2;
+                margin-bottom: 25px;
+                color: var(--text-main);
+            }
+
+            #feed-list.layout-paper .summary-box {
+                font-family: var(--font-read);
+                font-size: 1.15rem;
+                line-height: 1.8;
+                color: var(--text-muted);
+                -webkit-line-clamp: unset; /* Show Full Text */
+                display: block;
+            }
+
+            #feed-list.layout-paper .meta-row {
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+
+            /* Scrollbar Polish */
+            #feed-list.layout-paper .scroll-content::-webkit-scrollbar { width: 8px; }
+            #feed-list.layout-paper .scroll-content::-webkit-scrollbar-track { background: var(--bg-card); }
+            #feed-list.layout-paper .scroll-content::-webkit-scrollbar-thumb {
+                background: var(--border-glass);
+                border-radius: 4px;
+            }
+
+            /* --- Text Only Card Fix --- */
+            #feed-list.layout-paper .news-card.text-only .scroll-content {
+                grid-template-columns: 100%; /* Full width */
+            }
+            #feed-list.layout-paper .news-card.text-only .card-img { display: none; }
+            #feed-list.layout-paper .news-card.text-only .card-body,
+            #feed-list.layout-paper .news-card.text-only .action-toolbar-container {
+                grid-column: 1;
+                max-width: 800px; /* Constrain reading width */
+                margin: 0 auto;
+            }
+        }
+
         /* Search Input Styling inside Modal */
         .search-input-container {
             position: relative;
@@ -826,6 +972,7 @@
             color: var(--text-muted);
             font-size: 0.8rem;
         }
+
 
 
     </style>
@@ -1010,6 +1157,17 @@
 
             <div class="setting-row">
                 <div>
+                    <span class="setting-label">Desktop Layout</span>
+                    <span class="setting-sub">Customize the feed view (PC Only)</span>
+                </div>
+                <select id="layout-select" onchange="App.Actions.setLayout(this.value)" style="min-width: 120px;">
+                    <option value="grid">Grid (Cards)</option>
+                    <option value="paper">Paper (List)</option>
+                </select>
+            </div>
+
+            <div class="setting-row">
+                <div>
                     <span class="setting-label">Update Content</span>
                     <span class="setting-sub">Fetch latest flashcards and notes</span>
                 </div>
@@ -1189,12 +1347,14 @@
                 bookmarks: new Set(), 
                 filterBookmarks: false,
                 activeCategory: 'all',
+                desktopLayout: 'grid',
                 searchTerm: '',
                 srsData: {}, 
                 isDark: true, 
                 isGlobalHide: false,
                 quiz: { mode: null, deck: [], index: 0, currentScore: 0 },
-                contentUrl: 'https://script.google.com/macros/s/AKfycbyts9Lf6r37UUGkCNTlqMhb-YhdpOrrC4JRxVWpQ4uM0QxZzUMvNl0MMzumltlMd-8N/exec'
+                contentUrl: 'https://script.google.com/macros/s/AKfycbyts9Lf6r37UUGkCNTlqMhb-YhdpOrrC4JRxVWpQ4uM0QxZzUMvNl0MMzumltlMd-8N/exec' ,
+                activeDeepLink: null
             },
 
             Icons: {
@@ -1506,66 +1666,67 @@
                     try {
                         const currentBg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim();
 
-                        // Capture logic
                         const canvas = await html2canvas(card, {
-                            useCORS: true,       // CRITICAL: Tries to fetch images naturally
-                            allowTaint: true,    // Allows external images
+                            useCORS: true,
+                            allowTaint: true,
                             backgroundColor: currentBg,
-                            scale: 2,            // Retina quality
-                            scrollY: 0,          // Reset scroll
+                            scale: 2, // Retina quality
+                            scrollY: 0,
                             
-                            // Layout Fixes Only (No Proxying)
+                            // MAGIC FIX IS HERE:
                             onclone: (clonedDoc) => {
                                 const clonedCard = clonedDoc.getElementById(cardId);
                                 const scrollContent = clonedCard.querySelector('.scroll-content');
                                 const cardImg = clonedCard.querySelector('.card-img');
-
-                                // 1. UNLOCK HEIGHT (Fixes Long Content cutting off)
-                                clonedCard.style.height = 'auto';
-                                clonedCard.style.overflow = 'visible';
                                 
+                                // 1. FORCE MOBILE LAYOUT (Remove Desktop Classes)
+                                // This makes the captured image look like a standard vertical card
+                                // regardless of what view mode the user is currently in.
+                                const feedList = clonedDoc.getElementById('feed-list');
+                                if(feedList) feedList.classList.remove('layout-paper');
+
+                                // 2. RESET STYLES FOR CAPTURE
+                                clonedCard.style.height = 'auto';
+                                clonedCard.style.width = '600px'; // Force standard width
+                                clonedCard.style.maxWidth = '100%';
+                                clonedCard.style.margin = '0';
+                                clonedCard.style.transform = 'none';
+                                clonedCard.style.boxShadow = 'none';
+                                clonedCard.style.border = 'none';
+                                clonedCard.style.borderRadius = '0';
+
                                 if (scrollContent) {
                                     scrollContent.style.height = 'auto';
                                     scrollContent.style.overflow = 'visible';
-                                    scrollContent.scrollTop = 0;
+                                    scrollContent.style.display = 'block'; // Disable Grid/Flex
                                 }
 
-                                // 2. STABILIZE IMAGE CONTAINER
                                 if (cardImg) {
-                                    const style = window.getComputedStyle(cardImg);
-                                    // Only force height if there is actually an image
-                                    if(style.backgroundImage !== 'none') {
-                                        cardImg.style.display = 'block';
-                                        cardImg.style.height = '350px'; // Consistent aesthetic
-                                        cardImg.style.minHeight = '350px';
-                                        cardImg.style.flexShrink = '0';
-                                    } else {
-                                        // If no image exists, hide the container so we don't get a blank gap
-                                        cardImg.style.display = 'none';
-                                    }
+                                    // Force Image to Top
+                                    cardImg.style.width = '100%';
+                                    cardImg.style.height = '350px';
+                                    cardImg.style.position = 'relative'; // Remove sticky
+                                    cardImg.style.display = 'block';
                                 }
-
+                                
                                 // 3. CLEAN UP UI
                                 const toolbar = clonedCard.querySelector('.action-toolbar-container');
-                                if(toolbar) toolbar.style.display = 'none';
+                                if(toolbar) toolbar.style.display = 'none'; // Hide buttons in screenshot
                                 
                                 const watermark = clonedCard.querySelector('.watermark-overlay');
                                 if(watermark) watermark.style.display = 'block';
                             }
                         });
 
-                        // Save/Share Logic
+                        // ... (Rest of function remains the same: toBlob, share/download) ...
                         canvas.toBlob(async (blob) => {
                             if (!blob) throw new Error("Image generation failed");
-                            
                             const title = card.querySelector('h2') ? card.querySelector('h2').innerText.substring(0, 15) : 'Note';
                             const fileName = `CivilsKash_${title.replace(/[^a-z0-9]/gi, '_')}.png`;
                             const file = new File([blob], fileName, { type: "image/png" });
 
                             if (navigator.share) {
-                                try {
-                                    await navigator.share({ files: [file] });
-                                } catch (e) { console.log('Share dismissed'); }
+                                try { await navigator.share({ files: [file] }); } catch (e) {}
                             } else {
                                 const link = document.createElement('a');
                                 link.download = fileName;
@@ -1611,7 +1772,20 @@
                     if(btn) btn.classList.toggle('liked', !isBookmarked);
                     App.UI.toast(isBookmarked ? "Removed Bookmark" : "Saved ❤️");
                 },
+                async setLayout(mode) {
+                    App.State.desktopLayout = mode;
 
+                    await App.DB.put('settings', 'desktopLayout', mode);
+
+                    const feed = document.getElementById('feed-list');
+                    if(mode === 'paper') {
+                        feed.classList.add('layout-paper');
+                    } else {
+                        feed.classList.remove('layout-paper');
+                    }
+
+                    App.UI.toast(`Layout changed to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+                },
                 toggleBookmarksFilter() {
                     App.State.filterBookmarks = !App.State.filterBookmarks;
                     const btn = document.getElementById('bookmarks-btn');
@@ -1707,48 +1881,35 @@
                     App.UI.renderFeed();
                     App.UI.toast("Search Cleared");
                 },
-
-                goHome() {
-                    App.State.activeCategory = 'all';
-                    App.State.filterBookmarks = false;
-                    this.clearSearch(); 
-                    document.getElementById('category-active-badge').style.display = 'none';
-                    document.getElementById('category-btn').classList.remove('active-state');
-                    document.getElementById('bookmarks-btn').classList.remove('active-state');
-                    document.getElementById('bookmarks-btn').querySelector('svg').style.fill = 'none';
-                    document.getElementById('app-container').scrollTo(0,0);
-                    App.UI.renderFeed();
-                },
-
-                handleDeepLink: function() {
+                checkDeepLinkMode() {
                     const params = new URLSearchParams(window.location.search);
                     const cardId = params.get('id');
                     
                     if (cardId) {
-                        // 1. Give the browser a moment to finish painting the feed
-                        setTimeout(() => {
-                            const card = document.getElementById(cardId);
-                            if (card) {
-                                // Scroll into view
-                                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                
-                                // Highlight effect
-                                card.style.transition = "transform 0.5s ease, box-shadow 0.5s ease";
-                                card.style.transform = "scale(1.02)";
-                                card.style.boxShadow = "0 0 0 4px var(--primary)";
-                                
-                                // Remove highlight after 1.5 seconds
-                                setTimeout(() => {
-                                    card.style.transform = "";
-                                    card.style.boxShadow = "";
-                                }, 1500);
-
-                                // Update Page Title for Google/Browser Tab
-                                const titleText = card.querySelector('h2').innerText;
-                                document.title = `${titleText} - CivilKash`;
-                            }
-                        }, 500); // 500ms delay to be safe
+                        App.State.activeDeepLink = cardId;
+                        return true;
                     }
+                    return false;
+                },
+
+                goHome() {
+                    App.State.activeCategory = 'all';
+                    App.State.filterBookmarks = false;
+                    App.State.activeDeepLink = null; // Exit Single Card Mode
+
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.pushState({path: cleanUrl}, '', cleanUrl);
+                    document.title = "CivilsKash - for Daily Current Affairs"; // Reset Title
+
+                    this.clearSearch(); 
+                    document.getElementById('category-active-badge').style.display = 'none';
+                    document.getElementById('category-btn').classList.remove('active-state');
+                    const bookmarkBtn = document.getElementById('bookmarks-btn');
+                    bookmarkBtn.classList.remove('active-state');
+                    bookmarkBtn.querySelector('svg').style.fill = 'none';
+                    
+                    document.getElementById('app-container').scrollTo(0,0);
+                    App.UI.renderFeed();
                 }
             },
 
@@ -1991,29 +2152,48 @@
                     select.innerHTML = html;
                 },
 
-                renderFeed() {
+               renderFeed() {
                     const container = document.getElementById('feed-list');
                     
                     // Get current state variables
                     const isHidden = App.State.isGlobalHide;
                     const term = App.State.searchTerm; 
-                    
+                    const deepLinkId = App.State.activeDeepLink; // CHECK FOR SINGLE CARD MODE
+
                     // --- 1. FILTERING LOGIC ---
                     let itemsToShow = App.State.feed;
 
-                    if (term.length > 0) {
-                        itemsToShow = itemsToShow.filter(item => {
-                            const content = (item.title + ' ' + item.summary).toLowerCase();
-                            return content.includes(term);
-                        });
-                    }
+                    // A. DEEP LINK PRIORITY (If link exists, ignore everything else)
+                    if (deepLinkId) {
+                        itemsToShow = itemsToShow.filter(item => item.id === deepLinkId);
+                        
+                        // SAFETY: If ID in link is invalid (deleted card), fallback to normal feed
+                        if (itemsToShow.length === 0) {
+                            App.UI.toast("Note not found. Showing Feed.");
+                            App.State.activeDeepLink = null;
+                            itemsToShow = App.State.feed; // Reset
+                            // Clean URL so user doesn't get stuck
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        } else {
+                            // SUCCESS: Update Browser Tab Title (Regression Fix)
+                            document.title = `${itemsToShow[0].title} - CivilsKash`;
+                        }
+                    } else {
+                        // B. STANDARD FILTERS (Only run if NOT in deep link mode)
+                        document.title = "CivilsKash - for Daily Current Affairs"; // Default Title
 
-                    if (App.State.activeCategory !== 'all') {
-                        itemsToShow = itemsToShow.filter(item => item.category === App.State.activeCategory);
-                    }
-
-                    if (App.State.filterBookmarks) {
-                        itemsToShow = itemsToShow.filter(item => App.State.bookmarks.has(item.id));
+                        if (term.length > 0) {
+                            itemsToShow = itemsToShow.filter(item => {
+                                const content = (item.title + ' ' + item.summary).toLowerCase();
+                                return content.includes(term);
+                            });
+                        }
+                        if (App.State.activeCategory !== 'all') {
+                            itemsToShow = itemsToShow.filter(item => item.category === App.State.activeCategory);
+                        }
+                        if (App.State.filterBookmarks) {
+                            itemsToShow = itemsToShow.filter(item => App.State.bookmarks.has(item.id));
+                        }
                     }
 
                     // --- 2. EMPTY STATE HANDLING ---
@@ -2031,7 +2211,22 @@
                         return;
                     }
 
-                    // --- 3. HELPER: SMART HIGHLIGHTER ---
+                    // --- 3. RENDER LOOP ---
+                    let htmlBuffer = '';
+
+                    // INJECT BACK BUTTON (Only if in Deep Link Mode)
+                    if (deepLinkId) {
+                        htmlBuffer += `
+                            <div style="grid-column: 1/-1; width:100%; display:flex; justify-content:center; margin-bottom:30px; animation: fadeIn 0.5s ease;">
+                                <button class="btn-large btn-outline" onclick="App.Actions.goHome()" 
+                                    style="background:var(--bg-card); border:1px solid var(--border-glass); color:var(--text-main); max-width: 200px; gap:10px; box-shadow:var(--shadow-soft);">
+                                    <span>←</span> <span>View All Notes</span>
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    // HELPER: SMART HIGHLIGHTER (Kept exactly as before)
                     const processSmartContent = (rawText, query, isSummary) => {
                         let workingText = rawText;
                         const clozeStorage = [];
@@ -2057,8 +2252,6 @@
                         return workingText;
                     };
 
-                    // --- 4. RENDER LOOP ---
-                    let htmlBuffer = '';
                     let cardCounter = 0;
 
                     itemsToShow.forEach((item, idx) => {
@@ -2070,7 +2263,7 @@
                         const finalTitle = processSmartContent(item.title, term, false);
                         const finalSummary = processSmartContent(item.summary, term, true);
 
-                        // A. Render Standard Article
+                        // A. Render Article
                         htmlBuffer += `
                         <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx+1}" 
                                 ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
@@ -2109,14 +2302,10 @@
                             </div>
                         </article>`;
 
-                        // B. AD INJECTION LOGIC (Every 8th card)
-                        if (cardCounter % App.Ads.config.ratio === 0 && idx !== itemsToShow.length - 1 && App.Ads && App.Ads.getNextType() !== 'none') {  
-                            
+                        // B. AD INJECTION LOGIC (Disabled if in Deep Link Mode to keep it clean)
+                        if (!deepLinkId && cardCounter % App.Ads.config.ratio === 0 && idx !== itemsToShow.length - 1 && App.Ads && App.Ads.getNextType() !== 'none') {  
                             const adType = App.Ads.getNextType();
-
                             if (adType === 'google') {
-                                // --- GOOGLE AD RENDER ---
-                                // We wrap it in a card structure so it matches the feed aesthetic
                                 htmlBuffer += `
                                 <article class="news-card google-ad-unit">
                                     <div class="ad-label-corner">Ad</div>
@@ -2130,7 +2319,6 @@
                                     </div>
                                 </article>`;
                             } else {
-                                // --- SELF AD RENDER ---
                                 const ad = App.Ads.getRotatedSelfAd();
                                 htmlBuffer += `
                                 <article class="news-card ad-unit" onclick="window.open('${ad.link}', '_blank')" style="cursor:pointer;">
@@ -2159,11 +2347,10 @@
                     container.innerHTML = htmlBuffer;
 
                     // --- C. TRIGGER AD LOAD ---
-                    // We must wait for the HTML to be in the DOM before telling Google to fill the slots
                     setTimeout(() => {
                         if(App.Ads) App.Ads.triggerGoogleAds();
                     }, 100);
-                },
+                }
             },
             
             System: {
@@ -2200,58 +2387,53 @@
                     // 1. SYSTEM PREP: Init DB & Settings
                     await this.DB.init();
                     
-                    // Load saved theme
+                    // --- THEME & LAYOUT LOADING ---
                     let savedTheme = await this.DB.get('settings', 'themeName');
-                    // Fallback for older versions
-                    if (!savedTheme) {
-                        const oldBool = await this.DB.get('settings', 'theme');
-                        if (oldBool !== undefined) savedTheme = oldBool ? 'dark' : 'light';
-                    }
                     if (!savedTheme) savedTheme = 'dark';
-                    
-                    // Apply Theme
                     document.documentElement.setAttribute('data-theme', savedTheme);
                     const themeSelect = document.getElementById('theme-select');
                     if (themeSelect) themeSelect.value = savedTheme;
                     
-                    // Load Content URL
+                    let savedLayout = await this.DB.get('settings', 'desktopLayout');
+                    if (!savedLayout) savedLayout = 'grid'; 
+                    App.State.desktopLayout = savedLayout;
+                    const layoutSelect = document.getElementById('layout-select');
+                    if(layoutSelect) layoutSelect.value = savedLayout;
+                    if (savedLayout === 'paper') document.getElementById('feed-list').classList.add('layout-paper');
+
+                    // --- DATA LOADING ---
                     const url = await this.DB.get('settings', 'contentUrl');
                     if (url) App.State.contentUrl = url;
                     
-                    // Load Bookmarks
                     const storedBookmarks = await this.DB.get('bookmarks', 'ids');
                     if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
 
-                    // 2. INSTANT LOAD (The Performance Fix)
+                    // 2. CHECK DEEP LINK (Run this BEFORE rendering)
+                    App.Actions.checkDeepLinkMode();
+
+                    // 3. INSTANT LOAD (Local Data)
                     const localFeed = await App.Data.loadLocal();
                     App.State.feed = localFeed;
-                    App.UI.renderFeed();
+                    App.UI.renderFeed(); // This will now respect the deep link immediately
                     App.UI.populateExportSelect(); 
                     
-                    // 3. HIDE LOADER & SHOW INTERFACE
+                    // 4. HIDE LOADER
                     this.hideLoader(); 
-                    App.Actions.handleDeepLink();
 
-                    // CHECK FOR UPDATE SUCCESS ---
-                    if (localStorage.getItem('app_was_updated')) {
-                        setTimeout(() => {
-                            App.UI.toast("CivilsKash Updated Successfully! 🎉");
-                            localStorage.removeItem('app_was_updated'); // Clear the flag
-                        }, 500); // Small delay to let loader fade
-                    }
-              
+                    // NOTE: Old 'App.Actions.handleDeepLink()' is REMOVED from here.
 
-                    // 4. BACKGROUND SYNC (The "Live" Fix)
+                    // 5. BACKGROUND SYNC (Fetch Google Sheets)
                     console.log("🚀 Starting background sync...");
                     const freshData = await App.Data.syncNetwork();
 
-                    // 5. REFRESH IF NEW DATA FOUND
+                    // 6. REFRESH IF NEW DATA FOUND
                     if (freshData) {
                         console.log("⚡ New content received");
+                        // Reload from DB to get the merged list (Local + New Cloud Data)
                         App.State.feed = await App.Data.loadLocal();
-                        App.UI.renderFeed();
+                        App.UI.renderFeed(); // Re-render with new data
                         App.UI.populateExportSelect();
-                        App.UI.toast("Feed Updated ⚡");
+                        App.UI.toast("Feed Updated ⚡"); // Visual confirmation
                     }
 
                 } catch (err) {
