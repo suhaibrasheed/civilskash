@@ -1,21 +1,22 @@
-name: Update Sitemap Daily
+name: Auto SEO Generator
 
 on:
+  # 1. Run manually from GitHub Actions tab (for testing)
+  workflow_dispatch:
+  # 2. Run automatically every day at 00:00 UTC
   schedule:
-    # Runs at 00:00 UTC every day
     - cron: '0 0 * * *'
-  workflow_dispatch: # Allows manual run from Actions tab
 
 permissions:
   contents: write
 
 jobs:
-  update-sitemap:
+  build:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -27,13 +28,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Run Sitemap Generator
-        run: python scripts/update_sitemap.py
+      # CRITICAL CHANGE 1: Run the NEW script in the ROOT folder
+      - name: Run SEO Generator Script
+        run: python generate_seo.py
 
       - name: Commit and Push changes
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          git add sitemap.xml
+          git config --global user.name 'CivilsKash Bot'
+          git config --global user.email 'bot@civilskash.in'
+          
+          # CRITICAL CHANGE 2: Add EVERYTHING (folders), not just sitemap.xml
+          git add .
+          
           # Only commit if there are changes
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update sitemap.xml [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 SEO Auto-Update" && git push)
