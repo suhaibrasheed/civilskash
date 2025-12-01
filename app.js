@@ -1629,13 +1629,13 @@
                 }
             },
 
-            // --- INIT ENGINE (The "Race" Logic) ---
+            // --- INIT ENGINE (Regression-Proof & Smart Matching) ---
             async init() { 
                 try {
                     await this.DB.init();
                     this.PTR.init();
                     let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
-                    await App.Actions.setTheme(savedTheme); // Use Action to set consistent state
+                    await App.Actions.setTheme(savedTheme); 
                     
                     let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'grid';
                     App.State.desktopLayout = savedLayout;
@@ -1652,33 +1652,55 @@
                     let localFeed = await App.Data.loadLocal();
                     App.State.feed = localFeed;
                     App.UI.populateExportSelect(); 
+                    
                     const isDeepLink = App.Actions.checkDeepLinkMode();
                     
                     if (isDeepLink) {
                         const targetId = App.State.activeDeepLink;
-                        const existsLocally = App.State.feed.some(item => item.id === targetId);
 
-                        if (existsLocally) {
+                        // --- SMART MATCHING LOGIC (The Fix) ---
+                        // Ignores the numbers (art_10 vs art_5) and matches the text
+                        const findMatch = (idFromUrl) => {
+                            const targetSlug = idFromUrl.replace(/^art_\d+_/, ''); 
+                            
+                            return App.State.feed.find(item => {
+                                // A. Perfect Match
+                                if (item.id === idFromUrl) return true;
+                                // B. Slug Match (Ignores index mismatch)
+                                const itemSlug = item.id.replace(/^art_\d+_/, '');
+                                if (itemSlug === targetSlug) return true;
+                                // C. Safety Match (Handles slight variations)
+                                if (targetSlug.length > 8 && itemSlug.length > 8) {
+                                    return targetSlug.includes(itemSlug) || itemSlug.includes(targetSlug);
+                                }
+                                return false;
+                            });
+                        };
+
+                        let foundItem = findMatch(targetId);
+
+                        if (foundItem) {
+                            console.log(`✅ Deep Link Matched: ${targetId} -> ${foundItem.id}`);
+                            App.State.activeDeepLink = foundItem.id; // Use the REAL local ID
                             App.UI.renderFeed();
                             this.hideLoader();
-                            console.log("Found Deep Link Locally");
                         } else {
-                            console.log("Deep Link missing locally. Syncing...");
+                            console.log("⚠️ Deep Link not in cache. Syncing...");
                             const loaderText = document.querySelector('#startup-loader div:nth-child(3)');
                             if(loaderText) loaderText.innerText = "Searching Archives...";
                           
                             const freshData = await App.Data.syncNetwork();
                             
                             if (freshData) {
-                           
-                                App.State.feed = await App.Data.loadLocal();
-                            
-                                const foundNow = App.State.feed.some(item => item.id === targetId);
-                                if(foundNow) {
+                                App.State.feed = await App.Data.loadLocal(); 
+                                foundItem = findMatch(targetId); // Try matching again
+                                
+                                if(foundItem) {
+                                    App.State.activeDeepLink = foundItem.id;
                                     App.UI.renderFeed();
                                 } else {
                                     App.UI.toast("Note not found or deleted.");
-                                    App.Actions.goHome(); // Fallback to feed
+                                    App.Actions.goHome(); 
                                 }
                             } else {
                                 App.UI.toast("Note not available offline.");
@@ -1687,6 +1709,7 @@
                             this.hideLoader();
                         }
                     } else {
+                        // Standard Launch
                         App.UI.renderFeed();
                         this.hideLoader();
                         setTimeout(async () => {
@@ -1721,29 +1744,21 @@
         App.Actions.saveSharedNote = async function() {
             const title = document.getElementById('input-card-title').value;
             const body = document.getElementById('input-card-body').value;
-            
             if(!title || !body) return App.UI.toast("Please add text first");
-
             const newCard = {
                 id: 'shared_' + Date.now(),
-                category: 'Curated',  // <--- CHANGED THIS from 'Shared'
+                category: 'Curated',
                 title: title,
                 summary: body,
                 date: 'Just Now',
                 image: '', 
-                tags: ['Curated']     // <--- CHANGED THIS to match
+                tags: ['Curated']
             };
-
-            App.State.feed.unshift(newCard); // Add to top
-            
-            if(App.DB.isWorking) {
-                await App.DB.put('feed_cache', null, newCard); 
-            }
-
+            App.State.feed.unshift(newCard); 
+            if(App.DB.isWorking) await App.DB.put('feed_cache', null, newCard); 
             App.UI.closeModals();
             App.UI.renderFeed();
             App.UI.toast("Note Saved to Feed! ✅");
-            
             window.history.replaceState({}, document.title, window.location.pathname);
         };
 
