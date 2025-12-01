@@ -8,8 +8,7 @@ import shutil
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
 
-# 1. HARDCODED DATA (Manual Backup for SEO)
-# These are the 12 articles from your app.js that Google couldn't see.
+# 1. HARDCODED DATA (Must match app.js exactly)
 HARDCODED_DATA = [
     {"title": "Daily Current Affairs Quiz UPSC JKPSC", "summary": "Boost your preparation with high-yield MCQs for UPSC and JKPSC Prelims. Do you know 'Panchamrit' strategy from COP26, which relates to India's {{c1::Climate Action}} goals."},
     {"title": "Schedules of Indian Constitution Mnemonic", "summary": "Memorizing the 12 Schedules of the Indian Constitution is crucial for matching questions in Prelims. Use the famous trick: '{{c1::TEARS OF OLD PM}}'."},
@@ -42,9 +41,17 @@ def generate_site():
         print(f"❌ Error fetching data: {e}")
         sheet_data = []
 
-    # 3. MERGE DATA (Hardcoded + Sheets)
-    # We put sheets first so they are fresher, but include hardcoded at the end
-    full_data = sheet_data + HARDCODED_DATA
+    # 3. MERGE LOGIC (Crucial: Must Match App.Data.loadLocal)
+    # The App usually concatenates arrays and then REVERSES them.
+    # To match 'art_0' being the LATEST item:
+    # 1. Combine lists (Sheet + Hardcoded)
+    combined_raw = sheet_data + HARDCODED_DATA
+    
+    # 2. Assign IDs based on their "Raw" position
+    # 3. REVERSE the list so latest (Sheet items) come first in the iteration
+    combined_raw.reverse()
+    
+    full_data = combined_raw
 
     # Read template
     with open("index.html", "r", encoding="utf-8") as f:
@@ -52,25 +59,27 @@ def generate_site():
 
     sitemap_urls = []
     
-    # 4. CLEANUP (Delete old root folders to fix the mess)
-    print("🧹 Cleaning up old root folders...")
+    # 4. CLEANUP: Delete old root folders AND old notes folder
+    print("🧹 Cleaning up old folders...")
     for item in os.listdir('.'):
         if os.path.isdir(item) and item.startswith('art_'):
             shutil.rmtree(item)
-            
-    # Create 'notes' folder if missing
-    if not os.path.exists("notes"):
-        os.makedirs("notes")
+    
+    # Reset 'notes' folder
+    if os.path.exists("notes"):
+        shutil.rmtree("notes")
+    os.makedirs("notes")
 
     print(f"⚡ Generating {len(full_data)} pages inside /notes/ ...")
 
     for idx, item in enumerate(full_data):
+        # Generate ID matching App Logic (App uses slug mostly, but let's be consistent)
         slug = clean_slug(item.get('title', 'note'))
-        # Use existing ID if available, else generate consistent ID
+        
+        # We use a simple index here because the 'findMatch' in JS handles the smarts.
         unique_id = item.get('id') or f"art_{idx}_{slug}"
         
         # 5. CREATE SUBFOLDER inside 'notes'
-        # Path becomes: repo/notes/art_0_title/index.html
         output_dir = f"notes/{unique_id}"
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -83,8 +92,7 @@ def generate_site():
         new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
         new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
         
-        # 6. FIX RELATIVE PATHS (Crucial for Choice B)
-        # Since we are in notes/folder/ (2 levels deep), we need ../../
+        # 6. FIX RELATIVE PATHS (Going 2 levels deep: notes/art_x/)
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
@@ -93,7 +101,6 @@ def generate_site():
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
             f.write(new_html)
             
-        # Add to Sitemap with /notes/ prefix
         sitemap_urls.append(f"{BASE_URL}/notes/{unique_id}/")
 
     # 7. UPDATE SITEMAP
@@ -110,7 +117,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! 'notes' folder populated and root cleaned.")
+    print("✅ Done! Site structure updated.")
 
 if __name__ == "__main__":
     generate_site()
