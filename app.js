@@ -799,9 +799,21 @@
                     App.UI.renderFeed();
                     App.UI.toast("Search Cleared");
                 },
+               
                 checkDeepLinkMode() {
+                    // 1. Standard Query Param check (?id=...)
                     const params = new URLSearchParams(window.location.search);
-                    const cardId = params.get('id');
+                    let cardId = params.get('id');
+
+                    // 2. Folder Path check (SEO Friendly)
+                    if (!cardId) {
+                        const path = window.location.pathname; 
+                        const potentialId = path.split('/').find(segment => segment.startsWith('art_'));
+                        
+                        if (potentialId) {
+                            cardId = potentialId;
+                        }
+                    }
                     
                     if (cardId) {
                         App.State.activeDeepLink = cardId;
