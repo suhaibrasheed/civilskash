@@ -1629,11 +1629,13 @@
                 }
             },
 
-            // --- INIT ENGINE (Regression-Proof & Smart Matching) ---
+            // --- INIT ENGINE (The "Race" Logic) ---
             async init() { 
                 try {
                     await this.DB.init();
                     this.PTR.init();
+                    
+                    // 1. Restore User Preferences
                     let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
                     await App.Actions.setTheme(savedTheme); 
                     
@@ -1649,54 +1651,55 @@
                     const storedBookmarks = await this.DB.get('bookmarks', 'ids');
                     if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
 
-                    let localFeed = await App.Data.loadLocal();
-                    App.State.feed = localFeed;
+                    // 2. Load Local Data
+                    App.State.feed = await App.Data.loadLocal();
                     App.UI.populateExportSelect(); 
                     
+                    // 3. Deep Link Logic (The Fix)
                     const isDeepLink = App.Actions.checkDeepLinkMode();
                     
                     if (isDeepLink) {
-                        const targetId = App.State.activeDeepLink;
+                        const targetId = App.State.activeDeepLink; // e.g., "art_1_indus-water"
 
-                        // --- SMART MATCHING LOGIC (The Fix) ---
-                        // Ignores the numbers (art_10 vs art_5) and matches the text
-                        const findMatch = (idFromUrl) => {
-                            const targetSlug = idFromUrl.replace(/^art_\d+_/, ''); 
-                            
-                            return App.State.feed.find(item => {
-                                // A. Perfect Match
-                                if (item.id === idFromUrl) return true;
-                                // B. Slug Match (Ignores index mismatch)
-                                const itemSlug = item.id.replace(/^art_\d+_/, '');
-                                if (itemSlug === targetSlug) return true;
-                                // C. Safety Match (Handles slight variations)
-                                if (targetSlug.length > 8 && itemSlug.length > 8) {
-                                    return targetSlug.includes(itemSlug) || itemSlug.includes(targetSlug);
-                                }
-                                return false;
-                            });
+                        // HELPER: Extract the text slug (ignores the "art_1_" number prefix)
+                        const getSlug = (idStr) => {
+                            if (!idStr) return '';
+                            const parts = idStr.split('_');
+                            // If id is "art_1_some-title", parts are ["art", "1", "some-title"]
+                            return parts.length > 2 ? parts.slice(2).join('_') : idStr;
                         };
 
-                        let foundItem = findMatch(targetId);
+                        const targetSlug = getSlug(targetId);
+
+                        // A. Try to find locally using Slug Match
+                        let foundItem = App.State.feed.find(item => 
+                            item.id === targetId || getSlug(item.id) === targetSlug
+                        );
 
                         if (foundItem) {
-                            console.log(`✅ Deep Link Matched: ${targetId} -> ${foundItem.id}`);
-                            App.State.activeDeepLink = foundItem.id; // Use the REAL local ID
+                            // Fix the ID reference (in case URL says art_1 but Live Data says art_2)
+                            App.State.activeDeepLink = foundItem.id; 
                             App.UI.renderFeed();
                             this.hideLoader();
+                            console.log("Found Deep Link Locally (Slug Match)");
                         } else {
-                            console.log("⚠️ Deep Link not in cache. Syncing...");
+                            // B. Not found locally, Sync Network
+                            console.log("Deep Link missing locally. Syncing...");
                             const loaderText = document.querySelector('#startup-loader div:nth-child(3)');
                             if(loaderText) loaderText.innerText = "Searching Archives...";
                           
                             const freshData = await App.Data.syncNetwork();
                             
                             if (freshData) {
-                                App.State.feed = await App.Data.loadLocal(); 
-                                foundItem = findMatch(targetId); // Try matching again
-                                
+                                App.State.feed = await App.Data.loadLocal();
+                            
+                                // Check again in fresh data using Slug Match
+                                foundItem = App.State.feed.find(item => 
+                                    item.id === targetId || getSlug(item.id) === targetSlug
+                                );
+
                                 if(foundItem) {
-                                    App.State.activeDeepLink = foundItem.id;
+                                    App.State.activeDeepLink = foundItem.id; // Update to the real live ID
                                     App.UI.renderFeed();
                                 } else {
                                     App.UI.toast("Note not found or deleted.");
@@ -1709,7 +1712,7 @@
                             this.hideLoader();
                         }
                     } else {
-                        // Standard Launch
+                        // 4. Normal Feed Load
                         App.UI.renderFeed();
                         this.hideLoader();
                         setTimeout(async () => {
