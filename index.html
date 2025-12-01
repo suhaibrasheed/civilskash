@@ -17,12 +17,16 @@
     <meta property="og:image" content="https://civilskash.in/icon-192.png"> 
     <meta property="og:url" content="https://civilskash.in">
     <meta property="og:type" content="website">
-
+    
     <meta name="theme-color" content="#18181b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="google-site-verification" content="wUiOliD-vDlRhZkti0uiNPnZ4sNJ8Yn4Y_NEHicHjNY" />
-    
+
+    <link rel="icon" href="/favicon-96x96.png" sizes="96x96" type="image/png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -263,8 +267,8 @@
         }
 
         /* =========================================
-           5. MAIN FEED & CARDS
-           ========================================= */
+        5. MAIN FEED & CARDS
+        ========================================= */
         #app-container { height: 100%; width: 100%; overflow-y: auto; scroll-behavior: smooth; padding-top: var(--header-h); overscroll-behavior-y: contain; will-change: scroll-position; }
 
         @media (min-width: 769px) {
@@ -278,131 +282,185 @@
                 box-shadow: var(--shadow-soft); overflow: hidden;
             }
         }
+
         .action-toolbar-container {
             padding: 15px 20px 30px 20px; 
             display: flex; justify-content: center; width: 100%;
         }
 
         .action-toolbar {
-            display: flex; align-items: center; justify-content: space-evenly; 
-            gap: 15px; /* Reduced gap for compactness */
-            
+            display: flex; align-items: center; justify-content: space-evenly; gap: 15px;
             background: var(--toolbar-bg); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); /* Creamier blur */
-            
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--toolbar-border);
-            box-shadow: 
-                0 8px 32px -4px rgba(0,0,0,0.1),       /* Soft Drop Shadow */
-                inset 0 1px 1px rgba(255, 255, 255, 0.5); /* Inner Top Gloss Highlight */
-
-            padding: 4px 20px; /* Reduced from 12px 32px */
-            border-radius: 50px;
-            min-width: 180px; /* Slightly smaller min-width */
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Bouncy transition */
+            box-shadow: 0 8px 32px -4px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+            padding: 4px 20px; border-radius: 50px; min-width: 180px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
+
         .action-toolbar .icon-btn svg {
-            width: 28px;   /* Increased from 22px */
-            height: 28px;
-            stroke-width: 1.8; /* Slightly cleaner lines for larger icons */
+            width: 28px; height: 28px; stroke-width: 1.8;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
-        /* Cute Hover Bounce */
-        .action-toolbar .icon-btn:hover svg {
-            transform: scale(1.2);
-        }
-        .action-toolbar .icon-btn { 
-            padding: 8px; 
-            color: var(--toolbar-text); /* Dynamic Icon Color */
-        }
-        
-        .action-toolbar .icon-btn:hover {
-            color: var(--primary); /* Hover is always primary color */
-            transform: scale(1.15);
-            background: transparent;
-        }
-        
-        /* Keep the liked heart red regardless of theme */
-        .action-toolbar .icon-btn.liked { 
-            color: var(--red) !important; 
-        }
+        .action-toolbar .icon-btn:hover svg { transform: scale(1.2); }
+        .action-toolbar .icon-btn { padding: 8px; color: var(--toolbar-text); }
+        .action-toolbar .icon-btn:hover { color: var(--primary); transform: scale(1.15); background: transparent; }
+        .action-toolbar .icon-btn.liked { color: var(--red) !important; }
 
         @media (max-width: 768px) {
-            #app-container { 
-                scroll-snap-type: y mandatory; 
-                padding-top: 0; 
-                height: 100dvh; 
-            }
-
+            #app-container { scroll-snap-type: y mandatory; padding-top: 0; height: 100dvh; }
             header { 
                 background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
-                backdrop-filter: none; 
-                border: none; 
-                pointer-events: none;
-                height: 50px; /* Fixed height for stability */
-                padding: 0 10px; 
-                align-items: center; 
-                display: flex;
+                backdrop-filter: none; border: none; pointer-events: none;
+                height: 50px; padding: 0 10px; align-items: center; display: flex;
             }
-
             header > * { pointer-events: auto; }
             .header-actions { gap: 2px; }
-
-            .brand { 
-                -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); 
-                font-size: 1.5rem; 
-            }
+            .brand { -webkit-text-fill-color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); font-size: 1.5rem; }
             .icon-btn { color: rgba(255,255,255,0.95); }
-            
             .news-card { 
-                height: 100dvh; width: 100%; 
-                scroll-snap-align: start; 
-                scroll-snap-stop: normal; 
-                border-radius: 0; border: none;
-                display: flex; flex-direction: column; 
+                height: 100dvh; width: 100%; scroll-snap-align: start; scroll-snap-stop: normal; 
+                border-radius: 0; border: none; display: flex; flex-direction: column; 
             }
-            
-            .scroll-content {
-                flex: 1; overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                display: block; 
-                padding-bottom: 20px; 
-            }
-
+            .scroll-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; display: block; padding-bottom: 20px; }
             .card-footer { display: none !important; } 
-
-            .card-img { 
-                height: 40vh; 
-                background-position: center top !important; 
-            }
-        }
-        
-
-        .news-card { 
-            background: var(--bg-card); position: relative; 
-            display: flex; flex-direction: column; transition: transform 0.3s ease;
-        }
-        
-        .scroll-content {
-            flex: 1; overflow-y: auto;
-            display: flex; flex-direction: column; position: relative;
+            .card-img { height: 40vh; background-position: center top !important; }
         }
 
-        .card-img { 
-            height: 45vh; min-height: 250px; flex-shrink: 0; 
-            background-size: cover; background-position: center; position: relative; 
-        }
-
+        .news-card { background: var(--bg-card); position: relative; display: flex; flex-direction: column; transition: transform 0.3s ease; }
+        .scroll-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; position: relative; }
+        .card-img { height: 45vh; min-height: 250px; flex-shrink: 0; background-size: cover; background-position: center; position: relative; }
         .spin-active { animation: spin 1s linear infinite; color: var(--primary) !important; }
-
         .card-body { padding: 24px 24px 4px 24px; position: relative; z-index: 2; }
 
-        .news-card.text-only .scroll-content { background: var(--gradient-text-card); }
-        .news-card.text-only .card-img { display: none; }
-        .news-card.text-only .card-body { padding-top: 80px; min-height: 100%; display:flex; flex-direction:column; justify-content:center;}
-        .news-card.text-only h2 { font-size: 2.2rem; }
+        /* --- TEXT ONLY CARD (LIVE APP) --- */
+        .news-card.text-only .scroll-content { 
+            background: var(--bg-card);
+            background-image: linear-gradient(to bottom right, var(--bg-card), var(--bg-body));
+        }
+        .news-card.text-only .card-body { 
+            padding: 80px 30px 40px 30px; min-height: 100%; 
+            display: block; position: relative; overflow: hidden;
+        }
+        .news-card.text-only .card-body::before {
+            content: '“'; position: absolute; top: -20px; left: 20px;
+            font-family: var(--font-read); font-size: 10rem; line-height: 1;
+            color: var(--primary); opacity: 0.1; pointer-events: none; z-index: -1;
+        }
+        .news-card.text-only h2 { 
+            font-size: 2rem; margin-bottom: 24px; text-align: center; position: relative; z-index: 2;
+        }
+        .news-card.text-only .summary-box { text-align: left; font-size: 1.25rem; line-height: 1.8; position: relative; z-index: 2; }
+        /* Uncluttered Header for Text Cards */
+        .news-card.text-only .meta-row {
+            justify-content: center !important; gap: 25px !important; 
+            margin-bottom: 30px !important; position: relative; z-index: 5;
+        }
+        .news-card.text-only .date::before {
+            content: ''; position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+            width: 1px; height: 12px; background: var(--text-muted); opacity: 0.4;
+        }
 
-        .meta-row {  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; opacity: 0.9; }
+        /* --- EXPORT CARD (MAGAZINE STYLE) --- */
+        .news-card.export-mode {
+            height: auto !important; min-height: auto !important; width: 600px !important;
+            background: var(--bg-card) !important; color: var(--text-main) !important;
+            border: none !important; border-radius: 0 !important;
+            display: flex !important; flex-direction: column !important; position: relative !important;
+            z-index: -9999; padding: 0 !important; overflow: hidden !important;
+        }
+        /* Hide UI in Export */
+        .news-card.export-mode .card-img,
+        .news-card.export-mode .action-toolbar-container, 
+        .news-card.export-mode .card-footer,
+        .news-card.export-mode .watermark-overlay,
+        .news-card.export-mode .ad-label-corner,
+        .news-card.export-mode .export-logo-top { display: none !important; }
+
+        /* 16:11 Aspect Ratio Image */
+        .export-image-16x11 {
+            width: 100% !important; aspect-ratio: 16 / 11 !important; 
+            background-size: cover !important; background-position: center center !important;
+            background-repeat: no-repeat !important; border-bottom: 1px solid var(--border-glass);
+            z-index: 1; background-color: var(--bg-body); margin: 0 !important;
+        }
+
+        /* Export Typography (Tight & Optimized) */
+        .news-card.export-mode .card-body {
+            padding: 15px 20px 4px 20px !important; /* Optimized Padding */
+            background: var(--bg-card) !important; flex: 1;
+        }
+        /* Quote Mark for Text-Only Export */
+        .news-card.export-mode .card-body::before {
+            content: '“'; position: absolute; top: -15px; left: 20px;
+            font-family: var(--font-read); font-size: 8rem; line-height: 1;
+            color: var(--primary); opacity: 0.07; pointer-events: none; z-index: 0;
+        }
+        .news-card.export-mode h2 {
+            font-size: 2.4rem !important; line-height: 1.2 !important;
+            margin-bottom: 12px !important; color: var(--text-main) !important;
+            letter-spacing: -0.03em !important; position: relative; z-index: 2;
+        }
+        .news-card.export-mode .summary-box {
+            font-family: var(--font-read) !important; font-size: 1.35rem !important;
+            line-height: 1.6 !important; color: var(--text-muted) !important;
+            opacity: 0.95 !important; position: relative; z-index: 2;
+        }
+
+        /* Export Header Fix (Uncluttered) */
+        .news-card.export-mode .meta-row {
+            margin-bottom: 20px !important; 
+            justify-content: space-between !important; /* Pushes items to edges */
+            align-items: center !important; 
+            gap: 0 !important; /* Gap not needed with space-between */
+            position: relative; z-index: 5;
+        }
+        .news-card.export-mode .date {
+            font-size: 0.85rem !important; font-weight: 600 !important;
+            color: var(--text-muted) !important; opacity: 0.8 !important; position: relative !important;
+        }
+        .news-card.export-mode .date::before {
+            display: none !important;
+        }
+
+        /* "Fill in the Blanks" Style */
+        .news-card.export-mode .keyword {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 4px !important; /* Slight breathing room */
+            margin: 0 !important;
+            color: var(--primary) !important;
+            font-family: var(--font-ui) !important;
+            font-size: 1.25rem !important;
+            font-weight: 900 !important; 
+            letter-spacing: 1.5px !important; 
+            opacity: 1 !important; 
+            display: inline-block !important;
+            vertical-align: baseline !important;
+        }
+        .news-card.export-mode .keyword::after { content: none !important; }
+
+        /* Compact Footer */
+        .export-footer {
+            background: var(--bg-card); padding: 10px 40px 15px 40px; 
+            display: flex; flex-direction: row !important; align-items: center;
+            justify-content: center; gap: 15px; margin-top: auto;
+        }
+        .export-divider { width: 40px; height: 3.5px; background: var(--primary); opacity: 0.5; }
+        .export-brand {
+            font-family: var(--font-ui); font-weight: 800; font-size: 1.2rem;
+            color: var(--text-main); display: flex; align-items: center; white-space: nowrap;
+        }
+        .export-brand span { color: var(--primary); }
+        .domain-badge {
+            background: var(--highlight-bg); color: var(--primary) !important;
+            font-size: 0.75rem; padding: 1px 5px; border-radius: 4px; margin-left: 4px;
+            font-weight: 700; text-transform: lowercase; border: 1px solid var(--primary-dim);
+        }
+
+        /* Standard Base Styles */
+        .meta-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; opacity: 0.9; }
         .badge { 
             background: var(--primary); color: #000; padding: 4px 10px; 
             border-radius: 6px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;
@@ -421,20 +479,15 @@
         .keyword {
             background: var(--highlight-bg); color: var(--primary); 
             padding: 2px 5px; border-radius: 4px; font-weight: 600; cursor: pointer;
-            border-bottom: 1px dashed var(--primary); transition: all 0.3s ease;
-            user-select: none;
+            border-bottom: 1px dashed var(--primary); transition: all 0.3s ease; user-select: none;
         }
         .keyword.is-hidden {
-            background: var(--cloze-bg); color: transparent; 
-            border-bottom: 2px solid var(--cloze-border); 
+            background: var(--cloze-bg); color: transparent; border-bottom: 2px solid var(--cloze-border); 
         }
         .keyword.is-hidden:hover { border-color: var(--primary); }
-
         .card-footer { 
-            padding: 16px 24px;
-            display: flex; justify-content: flex-end; gap: 12px; align-items: center; 
-            border-top: 1px solid var(--border-glass); 
-            background: var(--bg-card); z-index: 10;
+            padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; align-items: center; 
+            border-top: 1px solid var(--border-glass); background: var(--bg-card); z-index: 10;
         }
 
         /* =========================================
@@ -1885,20 +1938,33 @@
                     if (!App.State.contentUrl) return null;
 
                     try {
-                        const res = await fetch(App.State.contentUrl);
+                      
+                        const separator = App.State.contentUrl.includes('?') ? '&' : '?';
+                        const freshUrl = `${App.State.contentUrl}${separator}t=${Date.now()}`;
+
+                        const res = await fetch(freshUrl, {
+                            method: 'GET',
+                            cache: 'no-store',
+                            headers: {
+                                'Pragma': 'no-cache',
+                                'Cache-Control': 'no-cache'
+                            },
+                            redirect: 'follow'
+                        });
+
                         if (res.ok) {
                             const cloudData = await res.json();
-                            const normalizedCloud = this.normalize(cloudData); // Don't reverse yet
+                            const normalizedCloud = this.normalize(cloudData);
                         
                             const tx = App.DB.db.transaction('feed_cache', 'readwrite');
                             const store = tx.objectStore('feed_cache');
                             normalizedCloud.forEach(item => store.put(item));
                             
-                            return normalizedCloud; // Return fresh data
+                            return normalizedCloud;
                         }
                     } catch (e) {
                         console.warn("Background Sync failed (Offline)", e);
-                        return null; // Return null to indicate no update
+                        return null;
                     }
                 },
 
@@ -2049,6 +2115,7 @@
                     this.lastTapTime = currentTime;
                 },
 
+
                 triggerHeartAnimation(id) {
                     const heart = document.getElementById(`heart-anim-${id}`);
                     if(heart) {
@@ -2110,104 +2177,108 @@
                     }
                 },
 
+                
+           
                 async shareAsImage(cardId) {
-                    const card = document.getElementById(cardId);
-                    if (!card) return;
+                    const originalCard = document.getElementById(cardId);
+                    // Get data backup
+                    const cardData = App.State.feed.find(c => c.id === cardId);
 
-                    App.UI.toast("Generating Image... 📸");
-                    card.classList.add('capturing');
+                    if (!originalCard) return;
+
+                    App.UI.toast("Designing Card... 🎨");
 
                     try {
-                        const currentBg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim();
-
-                        const canvas = await html2canvas(card, {
+                        const canvas = await html2canvas(originalCard, {
                             useCORS: true,
                             allowTaint: true,
-                            backgroundColor: currentBg,
-                            scale: 2, // Retina quality
-                            scrollY: 0,
+                            scale: 2, 
+                            backgroundColor: null,
                             
-                            // MAGIC FIX IS HERE:
                             onclone: (clonedDoc) => {
                                 const clonedCard = clonedDoc.getElementById(cardId);
                                 const scrollContent = clonedCard.querySelector('.scroll-content');
-                                const cardImg = clonedCard.querySelector('.card-img');
                                 
-                                // 1. FORCE MOBILE LAYOUT (Remove Desktop Classes)
-                                // This makes the captured image look like a standard vertical card
-                                // regardless of what view mode the user is currently in.
-                                const feedList = clonedDoc.getElementById('feed-list');
-                                if(feedList) feedList.classList.remove('layout-paper');
-
-                                // 2. RESET STYLES FOR CAPTURE
-                                clonedCard.style.height = 'auto';
-                                clonedCard.style.width = '600px'; // Force standard width
-                                clonedCard.style.maxWidth = '100%';
-                                clonedCard.style.margin = '0';
-                                clonedCard.style.transform = 'none';
-                                clonedCard.style.boxShadow = 'none';
-                                clonedCard.style.border = 'none';
-                                clonedCard.style.borderRadius = '0';
-
+                                // 1. Activate Export Mode
+                                clonedCard.classList.add('export-mode');
+                                
+                                // 2. Unroll Content
                                 if (scrollContent) {
+                                    scrollContent.style.maxHeight = 'none';
                                     scrollContent.style.height = 'auto';
                                     scrollContent.style.overflow = 'visible';
-                                    scrollContent.style.display = 'block'; // Disable Grid/Flex
-                                }
 
-                                if (cardImg) {
-                                    // Force Image to Top
-                                    cardImg.style.width = '100%';
-                                    cardImg.style.height = '350px';
-                                    cardImg.style.position = 'relative'; // Remove sticky
-                                    cardImg.style.display = 'block';
+                                    const keywords = clonedCard.querySelectorAll('.keyword');
+                                    keywords.forEach(k => {
+                                        k.innerText = '[ ...?... ]'; 
+                                    });
+
+                                    // --- IMAGE INJECTION LOGIC ---
+                                    let imgUrl = null;
+                                    const originalBgDiv = originalCard.querySelector('.card-img');
+                                    if (originalBgDiv) {
+                                        const bgStyle = window.getComputedStyle(originalBgDiv).backgroundImage;
+                                        const urlMatch = bgStyle.match(/url\(["']?([^"']*)["']?\)/);
+                                        if (urlMatch && urlMatch[1] && urlMatch[1] !== 'none') imgUrl = urlMatch[1];
+                                    }
+                                    if (!imgUrl && cardData && cardData.image && cardData.image.trim() !== '') {
+                                        imgUrl = cardData.image;
+                                    }
+
+                                    if (imgUrl) {
+                                        const imgDiv = clonedDoc.createElement('div');
+                                        imgDiv.className = 'export-image-16x11';
+                                        imgDiv.style.backgroundImage = `url('${imgUrl}')`;
+                                        scrollContent.insertBefore(imgDiv, scrollContent.firstChild);
+                                    }
                                 }
                                 
-                                // 3. CLEAN UP UI
-                                const toolbar = clonedCard.querySelector('.action-toolbar-container');
-                                if(toolbar) toolbar.style.display = 'none'; // Hide buttons in screenshot
-                                
-                                const watermark = clonedCard.querySelector('.watermark-overlay');
-                                if(watermark) watermark.style.display = 'block';
+                                // 3. Inject Footer
+                                const footer = clonedDoc.createElement('div');
+                                footer.className = 'export-footer';
+                                footer.innerHTML = `
+                                    <div class="export-divider"></div>
+                                    <div class="export-brand">
+                                        Civils<span>Kash</span><span class="domain-badge">.in</span>
+                                    </div>
+                                    <div class="export-divider"></div>
+                                `;
+                                clonedCard.appendChild(footer);
                             }
                         });
 
-                        // ... (Rest of function remains the same: toBlob, share/download) ...
                         canvas.toBlob(async (blob) => {
                             if (!blob) throw new Error("Image generation failed");
-                            const title = card.querySelector('h2') ? card.querySelector('h2').innerText.substring(0, 15) : 'Note';
-                            const fileName = `CivilsKash_${title.replace(/[^a-z0-9]/gi, '_')}.png`;
+                            
+                            const titleEl = originalCard.querySelector('h2');
+                            const titleSlug = titleEl ? titleEl.innerText.substring(0, 15).replace(/[^a-z0-9]/gi, '_') : 'Note';
+                            const fileName = `CivilsKash_${titleSlug}.png`;
                             const file = new File([blob], fileName, { type: "image/png" });
 
-                            if (navigator.share) {
+                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
                                 try { await navigator.share({ files: [file] }); } catch (e) {}
                             } else {
                                 const link = document.createElement('a');
                                 link.download = fileName;
                                 link.href = canvas.toDataURL();
                                 link.click();
-                                App.UI.toast("Image Downloaded");
+                                App.UI.toast("Saved to Gallery 📸");
                             }
                         }, 'image/png');
 
                     } catch (err) {
                         console.error("Capture Error:", err);
-                        App.UI.toast("Share Failed.");
-                    } finally {
-                        card.classList.remove('capturing');
+                        App.UI.toast("Could not generate image.");
                     }
                 },
 
                 async setTheme(themeName) {
                     App.State.isDark = (themeName === 'dark');
-                    
-                    // 1. Apply to DOM
+                  
                     document.documentElement.setAttribute('data-theme', themeName);
-                    
-                    // 2. Save to DB
+    
                     await App.DB.put('settings', 'themeName', themeName); // New key 'themeName'
-                    
-                    // 3. Update Dropdown UI (if needed programmatically)
+                 
                     const select = document.getElementById('theme-select');
                     if(select) select.value = themeName;
 
@@ -2215,6 +2286,7 @@
                 },
 
                 async toggleBookmark(id) {
+                    App.UI.haptic([5, 30, 5]);
                     const isBookmarked = App.State.bookmarks.has(id);
                     const newSet = new Set(App.State.bookmarks);
                     if (isBookmarked) newSet.delete(id); else newSet.add(id);
@@ -2286,6 +2358,7 @@
                 toggleKeyword(el) { el.classList.toggle('is-hidden'); },
                 
                 toggleGlobalHide() {
+                    App.UI.haptic(10);
                     App.State.isGlobalHide = !App.State.isGlobalHide;
                     const btn = document.getElementById('global-hide-btn');
                     btn.innerHTML = App.State.isGlobalHide ? App.Icons.eyeClosed : App.Icons.eyeOpen;
@@ -2742,10 +2815,17 @@
                 },
 
                 // 7. INTERACTION
-                flip() { document.getElementById('quiz-card-wrapper').classList.add('is-flipped'); },
+                flip() { 
+                    App.UI.haptic(5);
+                    document.getElementById('quiz-card-wrapper').classList.add('is-flipped'); 
+                },
 
                 async rate(status, points) {
                     if (this.session.isAnimating) return;
+                    
+                    if(status === 'again') App.UI.haptic(40);
+                    else App.UI.haptic(10);
+
                     const s = this.session;
                     const card = s.deck[s.pointer];
                     
@@ -2846,7 +2926,15 @@
 
             // --- UI RENDERING ---
             UI: {
+
+                haptic(pattern = 5) {
+                    // Only works on Android/supported browsers
+                    if (navigator.vibrate) {
+                        navigator.vibrate(pattern);
+                    }
+                },
                 openModal(id) {
+                    this.haptic(10);
                     const el = document.getElementById(id);
                     
                     if(id === 'modal-quiz-menu') {
@@ -3141,57 +3229,71 @@
             // --- INIT ENGINE (The "Race" Logic) ---
             async init() { 
                 try {
-                    // 1. SYSTEM PREP: Init DB & Settings
                     await this.DB.init();
-                    
                     this.PTR.init();
-                    // --- THEME & LAYOUT LOADING ---
-                    let savedTheme = await this.DB.get('settings', 'themeName');
-                    if (!savedTheme) savedTheme = 'dark';
-                    document.documentElement.setAttribute('data-theme', savedTheme);
-                    const themeSelect = document.getElementById('theme-select');
-                    if (themeSelect) themeSelect.value = savedTheme;
+                    let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
+                    await App.Actions.setTheme(savedTheme); // Use Action to set consistent state
                     
-                    let savedLayout = await this.DB.get('settings', 'desktopLayout');
-                    if (!savedLayout) savedLayout = 'grid'; 
+                    let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'grid';
                     App.State.desktopLayout = savedLayout;
+                    if(savedLayout === 'paper') document.getElementById('feed-list').classList.add('layout-paper');
                     const layoutSelect = document.getElementById('layout-select');
                     if(layoutSelect) layoutSelect.value = savedLayout;
-                    if (savedLayout === 'paper') document.getElementById('feed-list').classList.add('layout-paper');
 
-                    // --- DATA LOADING ---
                     const url = await this.DB.get('settings', 'contentUrl');
                     if (url) App.State.contentUrl = url;
                     
                     const storedBookmarks = await this.DB.get('bookmarks', 'ids');
                     if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
 
-                    // 2. CHECK DEEP LINK (Run this BEFORE rendering)
-                    App.Actions.checkDeepLinkMode();
-
-                    // 3. INSTANT LOAD (Local Data)
-                    const localFeed = await App.Data.loadLocal();
+                    let localFeed = await App.Data.loadLocal();
                     App.State.feed = localFeed;
-                    App.UI.renderFeed(); // This will now respect the deep link immediately
                     App.UI.populateExportSelect(); 
+                    const isDeepLink = App.Actions.checkDeepLinkMode();
                     
-                    // 4. HIDE LOADER
-                    this.hideLoader(); 
+                    if (isDeepLink) {
+                        const targetId = App.State.activeDeepLink;
+                        const existsLocally = App.State.feed.some(item => item.id === targetId);
 
-                    // NOTE: Old 'App.Actions.handleDeepLink()' is REMOVED from here.
-
-                    // 5. BACKGROUND SYNC (Fetch Google Sheets)
-                    console.log("🚀 Starting background sync...");
-                    const freshData = await App.Data.syncNetwork();
-
-                    // 6. REFRESH IF NEW DATA FOUND
-                    if (freshData) {
-                        console.log("⚡ New content received");
-                        // Reload from DB to get the merged list (Local + New Cloud Data)
-                        App.State.feed = await App.Data.loadLocal();
-                        App.UI.renderFeed(); // Re-render with new data
-                        App.UI.populateExportSelect();
-                        App.UI.toast("Feed Updated ⚡"); // Visual confirmation
+                        if (existsLocally) {
+                            App.UI.renderFeed();
+                            this.hideLoader();
+                            console.log("Found Deep Link Locally");
+                        } else {
+                            console.log("Deep Link missing locally. Syncing...");
+                            const loaderText = document.querySelector('#startup-loader div:nth-child(3)');
+                            if(loaderText) loaderText.innerText = "Searching Archives...";
+                          
+                            const freshData = await App.Data.syncNetwork();
+                            
+                            if (freshData) {
+                           
+                                App.State.feed = await App.Data.loadLocal();
+                            
+                                const foundNow = App.State.feed.some(item => item.id === targetId);
+                                if(foundNow) {
+                                    App.UI.renderFeed();
+                                } else {
+                                    App.UI.toast("Note not found or deleted.");
+                                    App.Actions.goHome(); // Fallback to feed
+                                }
+                            } else {
+                                App.UI.toast("Note not available offline.");
+                                App.Actions.goHome();
+                            }
+                            this.hideLoader();
+                        }
+                    } else {
+                        App.UI.renderFeed();
+                        this.hideLoader();
+                        setTimeout(async () => {
+                            const fresh = await App.Data.syncNetwork();
+                            if(fresh) {
+                                App.State.feed = await App.Data.loadLocal();
+                                App.UI.renderFeed();
+                                App.UI.toast("Feed Updated ⚡");
+                            }
+                        }, 1000);
                     }
 
                 } catch (err) {
