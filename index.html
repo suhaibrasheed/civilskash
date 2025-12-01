@@ -518,18 +518,12 @@
         .quiz-face {
             position: absolute; inset: 0;
             -webkit-backface-visibility: hidden; backface-visibility: hidden;
-            
-            /* Premium Surface */
             background: linear-gradient(145deg, var(--bg-card), var(--bg-body));
             border-radius: 32px;
-            
-            /* Glassy Borders for depth */
             border-top: 1px solid rgba(255,255,255,0.1);
             border-left: 1px solid rgba(255,255,255,0.05);
             border-right: 1px solid rgba(0,0,0,0.1);
             border-bottom: 1px solid rgba(0,0,0,0.1);
-            
-            /* Deep Diffused Shadow */
             box-shadow: 
                 0 20px 50px -10px rgba(0,0,0,0.5),
                 0 10px 20px -10px rgba(0,0,0,0.3);
@@ -538,13 +532,11 @@
             overflow: hidden;
         }
 
-        /* Rotate back face so it's ready for the flip */
         .quiz-back { transform: rotateY(180deg); }
 
         .quiz-scroll-area {
             flex: 1; overflow-y: auto; padding: 40px;
             display: flex; flex-direction: column;
-            /* Hide Scrollbar for cleaner look */
             scrollbar-width: none; 
         }
         .quiz-scroll-area::-webkit-scrollbar { display: none; }
@@ -618,6 +610,134 @@
         }
         #quiz-summary.visible { display: flex; }
 
+        /* 1. STREAK FIRE ENGINE */
+        .streak-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .fire-wrapper {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            margin-bottom: 5px;
+        }
+
+        .fire-icon {
+            font-size: 3.5rem;
+            filter: drop-shadow(0 0 10px rgba(255, 100, 0, 0.5));
+            animation: breatheFire 2s infinite ease-in-out;
+            transform-origin: center bottom;
+            display: block;
+        }
+
+        .streak-count {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-glass);
+            color: var(--text-main);
+            font-weight: 800;
+            font-size: 0.9rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .streak-label {
+            font-size: 1.2rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2px;
+        }
+
+        .streak-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        @keyframes breatheFire {
+            0% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0.4)); }
+            50% { transform: scale(1.1); filter: drop-shadow(0 0 15px rgba(255, 69, 0, 0.8)); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0.4)); }
+        }
+        /* DAILY MASTERY BUTTON (Gold Theme) */
+        .btn-mastery {
+            background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); /* Amber to Dark Gold */
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); /* Golden Glow */
+            transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .btn-mastery:hover {
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.6);
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+        /* 2. CRAM MODE BUTTON STYLING */
+        .btn-cram {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+            border: none;
+        }
+        .btn-cram:hover {
+            box-shadow: 0 8px 25px rgba(124, 58, 237, 0.5);
+            transform: translateY(-2px);
+        }
+
+        /* 3. STATUS CAPSULE (On Flashcards) */
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;         
+            margin-bottom: 25px; 
+            width: 100%;
+            position: relative;
+        }
+        .clean-capsule { padding: 5px 14px; border-radius: 50px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid transparent; display: inline-block; backdrop-filter: blur(6px); transition: transform 0.2s ease; }
+        .clean-capsule:hover { transform: scale(1.05); }
+        .status-new { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); box-shadow: 0 0 15px rgba(59, 130, 246, 0.35); }
+        .status-again { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); box-shadow: 0 0 15px rgba(244, 63, 94, 0.35); }
+        .status-hard { background: rgba(249, 115, 22, 0.15); color: #f97316; border-color: rgba(249, 115, 22, 0.3); box-shadow: 0 0 15px rgba(249, 115, 22, 0.35); }
+        .status-good { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3); box-shadow: 0 0 15px rgba(16, 185, 129, 0.35); }
+        .status-easy { background: rgba(20, 184, 166, 0.15); color: #14b8a6; border-color: rgba(20, 184, 166, 0.3); box-shadow: 0 0 15px rgba(20, 184, 166, 0.35); }
+        
+        /* The Reset Button (FIX B: Outside & Aesthetic) */
+        .capsule-reset-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+        }
+
+        .capsule-reset-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--primary);
+            transform: rotate(-180deg); /* Playful interaction */
+            opacity: 1;
+        }
+
+        .card-status-capsule { display: none !important; }
 
         /* =========================================
            7. MODALS, CHIPS & SETTINGS
@@ -1171,24 +1291,40 @@
 
     <div id="modal-quiz-menu" class="modal-backdrop">
         <div class="modal-card">
-            <h2 style="margin-bottom:10px; font-weight:800; font-size:1.8rem;">Revision Zone 🧠</h2>
-            <p style="color:var(--text-muted); margin-bottom:24px;">Generate tests based on performance.</p>
-            
+        
+            <div class="streak-container">
+                <div class="fire-wrapper">
+                    <span class="fire-icon" id="streak-fire-icon">🔥</span>
+                    <div class="streak-count" id="streak-badge">0</div>
+                </div>
+                <div class="streak-label" id="streak-title">Ignite the Fire!</div>
+                <div class="streak-sub" id="streak-sub">Complete a session to build streak</div>
+            </div>
+
             <button class="btn-large btn-outline" onclick="App.Quiz.startPractice()" style="margin-bottom:12px;">
                 <div style="text-align:left; flex:1;">
                     <div>Practice Mode</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">Review filtered cards</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">Newest & Unseen Cards</div>
                 </div>
                 <span>📖</span>
             </button>
             
-            <button class="btn-large btn-primary" onclick="App.Quiz.startTest()">
+            <button class="btn-large btn-mastery" onclick="App.Quiz.startTest()" style="margin-bottom:12px;">
                 <div style="text-align:left; flex:1;">
                     <div>Daily Mastery</div>
-                    <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">Start bucket learning process</div>
+                    <div style="font-size:0.75rem; opacity:0.9; font-weight:400;">Spaced Repetition (SRS)</div>
                 </div>
-                <span>🏆</span>
+                <span style="font-size: 1.5rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">🏆</span>
             </button>
+
+            <button class="btn-large btn-cram" onclick="App.Quiz.startCram()">
+                <div style="text-align:left; flex:1;">
+                    <div>Cram Mode</div>
+                    <div style="font-size:0.75rem; opacity:0.9; font-weight:400;">Focus on SRS Revision</div>
+                </div>
+                <span>⚡</span>
+            </button>
+
             <button class="icon-btn" onclick="App.UI.closeModals()" style="position:absolute; top:20px; right:20px;">✕</button>
         </div>
     </div>
@@ -2276,17 +2412,78 @@
 
             // --- ADVANCED QUIZ & SRS ENGINE ---
             Quiz: {
-                // Session State
                 session: {
-                    mode: null,      // 'test' or 'practice'
-                    deck: [],        // The active cards
-                    pointer: 0,      // Current card index
-                    stats: { new: 0, learning: 0, review: 0, score: 0 },
-                    isAnimating: false 
+                    mode: null,      
+                    deck: [],       
+                    pointer: 0,      
+                    stats: { score: 0 },
+                    isAnimating: false,
+                    viewedInSession: new Set()
                 },
 
-                // 1. ATOMIC PARSER
-                _createAtomicCards(item) {
+                // 1. STREAK LOGIC
+                updateStreakInfo() {
+                    const lastDate = localStorage.getItem('civils_last_streak_date');
+                    let count = parseInt(localStorage.getItem('civils_streak_count') || '0');
+                    const today = new Date().toISOString().split('T')[0];
+
+                    // Check if streak is broken (last date was before yesterday)
+                    if (lastDate) {
+                        const d1 = new Date(lastDate);
+                        const d2 = new Date(today);
+                        const diffTime = Math.abs(d2 - d1);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                        
+                        if (diffDays > 1) count = 0;
+                    }
+
+                    // Update UI
+                    document.getElementById('streak-badge').innerText = count;
+                    const fireIcon = document.getElementById('streak-fire-icon');
+                    const title = document.getElementById('streak-title');
+                    
+                    if (count > 0) {
+                        title.innerText = `${count} Day Streak!`;
+                        fireIcon.style.filter = count > 5 
+                            ? "drop-shadow(0 0 15px rgba(255, 0, 0, 0.9)) hue-rotate(-20deg)" // Red Hot
+                            : "drop-shadow(0 0 10px rgba(255, 100, 0, 0.5))"; // Orange
+                    } else {
+                        title.innerText = "Start Your Streak";
+                        fireIcon.style.filter = "grayscale(100%) opacity(0.5)";
+                        fireIcon.style.animation = "none";
+                    }
+                },
+
+                commitStreak() {
+                    const today = new Date().toISOString().split('T')[0];
+                    const lastDate = localStorage.getItem('civils_last_streak_date');
+                    let count = parseInt(localStorage.getItem('civils_streak_count') || '0');
+
+                    if (lastDate !== today) {
+                        // Either started new or continued from yesterday
+                        // If it was broken, logic in updateStreakInfo sets visually to 0, 
+                        // but here we just increment. 
+                        // Realistically, we reset if broken logic above ran.
+                        
+                        // Simple check: Is it consecutive?
+                        if(lastDate) {
+                             const d1 = new Date(lastDate);
+                             const d2 = new Date(today);
+                             const diffDays = Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
+                             if(diffDays > 1) count = 0; // Reset if broken
+                        }
+                        
+                        count++;
+                        localStorage.setItem('civils_streak_count', count);
+                        localStorage.setItem('civils_last_streak_date', today);
+                        
+                        App.UI.toast(`Streak Extended! 🔥 ${count} Days`);
+                        this.updateStreakInfo(); // Refresh UI
+                    }
+                },
+
+                // 2. CARD PARSER
+                _createAtomicCards(item, itemIndex) {
                     if (!item.summary) return [];
                     const chunks = item.summary.split(/<br\s*\/?>|\n\n/i);
                     const cards = [];
@@ -2302,105 +2499,164 @@
                                 category: item.category,
                                 front: chunk.replace(regex, '<span class="quiz-mask"></span>'),
                                 back: chunk.replace(regex, '<span class="quiz-revealed">$1</span>'),
-                                raw: chunk
+                                raw: chunk,
+                                feedIndex: itemIndex
                             });
                         }
                     });
                     return cards;
                 },
 
-                // 2. THE SMART BUCKET ALGORITHM
+                // 3. DECK GENERATION (Practice, Test, Cram)
                 generateDeck(mode) {
-                    let allCards = App.State.feed.flatMap(item => this._createAtomicCards(item));
+                    // Flatten all cards
+                    let allCards = App.State.feed.flatMap((item, idx) => this._createAtomicCards(item, idx));
 
-                    if (mode === 'practice') {
-                        if (App.State.activeCategory !== 'all') {
-                            allCards = allCards.filter(c => c.category === App.State.activeCategory);
-                        }
-                        if (App.State.filterBookmarks) {
-                            allCards = allCards.filter(c => App.State.bookmarks.has(c.parentId));
-                        }
-                    }
-
-                    if (allCards.length === 0) return [];
-
-                    // Bucketing
-                    const buckets = { new: [], learning: [], review: [] };
-
-                    allCards.forEach(card => {
-                        const data = App.State.srsData[card.id];
-                        if (!data) {
-                            buckets.new.push(card);
-                        } else if (data.status === 'again' || data.status === 'hard') {
-                            buckets.learning.push({ ...card, lastReview: data.lastReview });
-                        } else {
-                            buckets.review.push({ ...card, lastReview: data.lastReview });
-                        }
+                    // Add Metadata
+                    const cardsWithMeta = allCards.map(card => {
+                        const dbEntry = App.State.srsData[card.id];
+                        return { 
+                            ...card, 
+                            lastReview: dbEntry ? dbEntry.lastReview : 0,
+                            status: dbEntry ? dbEntry.status : 'new'
+                        };
                     });
 
-                    // Sorting
+                    // --- MODE A: CRAM MODE (Old & Hard Only) ---
+                    if (mode === 'cram') {
+                        let cramCandidates = cardsWithMeta.filter(c => c.status !== 'new');
+
+                        if (cramCandidates.length === 0) return [];
+                        
+                        cramCandidates.sort((a, b) => {
+                            const isAgainA = (a.status === 'again');
+                            const isAgainB = (b.status === 'again');
+
+                            if (isAgainA && !isAgainB) return -1; // A comes first
+                            if (!isAgainA && isAgainB) return 1;  // B comes first
+                            
+                            return a.lastReview - b.lastReview;
+                        });
+
+                        return cramCandidates.slice(0, 10);
+                    }
+
+                    // --- MODE B: PRACTICE (Newest & Unseen) ---
+                    if (mode === 'practice') {
+                        if (App.State.activeCategory !== 'all') {
+                            cardsWithMeta.filter(c => c.category === App.State.activeCategory); // Bug fix: filter returns new array
+                        }
+                        
+                        // Sort: Unseen (0) > Newest Index
+                        cardsWithMeta.sort((a, b) => {
+                            if (a.lastReview !== b.lastReview) return a.lastReview - b.lastReview;
+                            return a.feedIndex - b.feedIndex;
+                        });
+
+                        return cardsWithMeta.slice(0, 10);
+                    }
+
+                    // --- MODE C: DAILY MASTERY (SRS Weighted) ---
+                    // Standard SRS Bucket Logic
+                    const buckets = { new: [], learning: [], review: [] };
+                    cardsWithMeta.forEach(card => {
+                        if (card.status === 'new') buckets.new.push(card);
+                        else if (card.status === 'again' || card.status === 'hard') buckets.learning.push(card);
+                        else buckets.review.push(card);
+                    });
+
+                    // Sort buckets
                     buckets.new.sort(() => 0.5 - Math.random());
-                    const sortByDate = (a, b) => a.lastReview - b.lastReview;
-                    buckets.learning.sort(sortByDate);
-                    buckets.review.sort(sortByDate);
+                    buckets.learning.sort((a,b) => a.lastReview - b.lastReview);
+                    buckets.review.sort((a,b) => a.lastReview - b.lastReview);
 
-                    // Composition
                     let finalDeck = [];
-                    const TARGET_SIZE = 10;
-                    const quota = { new: 4, learning: 4, review: 2 };
-
-                    const take = (bucketName, count) => {
-                        const extracted = buckets[bucketName].splice(0, count);
-                        finalDeck = finalDeck.concat(extracted);
-                        return count - extracted.length; 
+                    const TARGET = 10;
+                    
+                    // Fill Logic
+                    const take = (arr, n) => {
+                        const chunk = arr.splice(0, n);
+                        finalDeck.push(...chunk);
+                        return n - chunk.length; // deficit
                     };
 
                     let deficit = 0;
-                    deficit += take('new', quota.new);
-                    deficit += take('learning', quota.learning);
-                    deficit += take('review', quota.review);
+                    deficit += take(buckets.new, 4);
+                    deficit += take(buckets.learning, 4);
+                    deficit += take(buckets.review, 2);
 
-                    // Smart Backfill
-                    if (deficit > 0 && finalDeck.length < TARGET_SIZE) {
-                        while (buckets.learning.length > 0 && finalDeck.length < TARGET_SIZE) finalDeck.push(buckets.learning.shift());
-                        while (buckets.new.length > 0 && finalDeck.length < TARGET_SIZE) finalDeck.push(buckets.new.shift());
-                        while (buckets.review.length > 0 && finalDeck.length < TARGET_SIZE) finalDeck.push(buckets.review.shift());
+                    // Backfill
+                    if (finalDeck.length < TARGET) {
+                        take(buckets.learning, 10);
+                        take(buckets.new, 10);
+                        take(buckets.review, 10);
+                    }
+                    
+                    return finalDeck.slice(0, TARGET);
+                },
+
+                // 4. SESSION CONTROLS
+                startTest() { this._boot('test'); },
+                startPractice() { this._boot('practice'); },
+                startCram() { this._boot('cram'); },
+
+                _boot(mode) {
+                    const deck = this.generateDeck(mode);
+                    
+                    if (deck.length === 0) {
+                        if(mode === 'cram') return App.UI.toast("No 'Hard' cards to cram yet! Keep studying.");
+                        return App.UI.toast("No cards available for this mode.");
                     }
 
-                    return finalDeck.sort(() => 0.5 - Math.random());
-                },
-
-                // 3. START ENGINE
-                startTest() {
-                    const deck = this.generateDeck('test');
-                    if (deck.length === 0) return App.UI.toast("No flashcards found available!");
-                    this._initSession('test', deck);
-                },
-
-                startPractice() {
-                    const deck = this.generateDeck('practice');
-                    if (deck.length === 0) return App.UI.toast("No cards match current filters.");
-                    this._initSession('practice', deck);
-                },
-
-                _initSession(mode, deck) {
                     this.session = {
                         mode: mode, deck: deck, pointer: 0,
-                        stats: { new: 0, learning: 0, review: 0, score: 0 },
-                        isAnimating: false
+                        stats: { score: 0 },
+                        isAnimating: false,
+                        viewedInSession: new Set()
                     };
 
                     App.UI.closeModals();
                     document.getElementById('quiz-fullscreen-layer').classList.add('active');
                     
-                    const title = mode === 'test' ? 'DAILY MASTERY' : 'PRACTICE SET';
+                    let title = "DAILY MASTERY";
+                    if(mode === 'practice') title = "PRACTICE QUEUE";
+                    if(mode === 'cram') title = "CRAM SESSION ⚡";
+
                     document.getElementById('quiz-header-label').innerHTML = `<span style="color:var(--primary)">●</span> ${title}`;
                     document.getElementById('quiz-summary').classList.remove('visible');
                     
                     this._renderCard(false);
                 },
 
-                // 4. RENDERING & ANIMATION
+                // 5. RESET CARD FUNCTIONALITY (The new power feature)
+                async resetCard(cardId) {
+                    // Prevent bubbling if triggered from button
+                    if(event) event.stopPropagation();
+
+                    const currentCard = this.session.deck.find(c => c.id === cardId);
+                    if(!currentCard) return;
+
+                    // 1. Reset Data
+                    currentCard.status = 'new';
+                    currentCard.lastReview = 0;
+                    
+                    App.State.srsData[cardId] = { status: 'new', lastReview: 0, parentId: currentCard.parentId };
+                    await App.DB.put('srs_data', null, App.State.srsData[cardId]);
+
+                    // 2. Update UI Immediately
+                    const cap = document.querySelector(`.card-status-capsule`);
+                    if(cap) {
+                        cap.className = `card-status-capsule status-new`;
+                        cap.innerHTML = `<span>✨</span> NEW`;
+                        // Flash effect
+                        cap.style.transform = "scale(1.2)";
+                        setTimeout(() => cap.style.transform = "scale(1)", 200);
+                    }
+
+                    App.UI.toast("Card reset to New");
+                },
+
+                // 6. RENDER ENGINE (With Capsules)
                 _renderCard(animate = true) {
                     const s = this.session;
                     if (s.pointer >= s.deck.length) return this._finishSession();
@@ -2409,14 +2665,46 @@
                     const wrapper = document.getElementById('quiz-card-wrapper');
                     const progressBar = document.getElementById('quiz-progress-bar');
                     
+                    // -- SILENT UPDATE FOR PRACTICE (Queue Logic) --
+                    if (s.mode === 'practice' && !s.viewedInSession.has(card.id)) {
+                        s.viewedInSession.add(card.id);
+                        const currentData = App.State.srsData[card.id] || { status: 'viewed', parentId: card.parentId };
+                        const newData = { ...currentData, lastReview: Date.now() };
+                        App.State.srsData[card.id] = newData;
+                        App.DB.put('srs_data', null, { id: card.id, ...newData });
+                    }
+
+                    // -- NEW CAPSULE GENERATOR (Clean & Structure) --
+                    const getCapsuleHTML = (status) => {
+                        const map = {
+                            'new': { cls: 'status-new', label: 'New' },
+                            'again': { cls: 'status-again', label: 'Again' },
+                            'hard': { cls: 'status-hard', label: 'Hard' },
+                            'good': { cls: 'status-good', label: 'Good' },
+                            'easy': { cls: 'status-easy', label: 'Easy' },
+                            'viewed': { cls: 'status-new', label: 'Viewed' }
+                        };
+                        const info = map[status] || map['new'];
+    
+                        return `
+                        <div class="status-header">
+                            <span class="clean-capsule ${info.cls}">${info.label}</span>
+                            <button class="capsule-reset-btn" onclick="event.stopPropagation(); App.Quiz.resetCard('${card.id}')" title="Reset Card">
+                                ↺
+                            </button>
+                        </div>`;
+                    };
+
                     const setupText = () => {
-                        document.getElementById('fc-front-text').innerHTML = card.front;
-                        document.getElementById('fc-back-text').innerHTML = card.back;
+                        const headerHTML = getCapsuleHTML(card.status || 'new');
+                        document.getElementById('fc-front-text').innerHTML = headerHTML + card.front;
+                        document.getElementById('fc-back-text').innerHTML = headerHTML + card.back;
+                        
                         wrapper.classList.remove('is-flipped'); 
                         
                         const footer = document.getElementById('quiz-back-controls');
-                        if (s.mode === 'test') {
-                            footer.innerHTML = `
+                        if (s.mode === 'test' || s.mode === 'cram') {
+                             footer.innerHTML = `
                                 <div class="srs-grid">
                                     <button class="srs-btn srs-again" onclick="App.Quiz.rate('again', 0)"><span>Again</span><span>Fail</span></button>
                                     <button class="srs-btn srs-hard" onclick="App.Quiz.rate('hard', 0.5)"><span>Hard</span><span>Tough</span></button>
@@ -2425,7 +2713,7 @@
                                 </div>`;
                         } else {
                             footer.innerHTML = `
-                                    <div style="display:flex; gap:10px; width:100%;">
+                                <div style="display:flex; gap:10px; width:100%;">
                                     <button class="btn-large btn-outline" style="flex:1" onclick="App.Quiz.nav(-1)">Prev</button>
                                     <button class="btn-large btn-primary" style="flex:1" onclick="App.Quiz.nav(1)">Next</button>
                                 </div>`;
@@ -2436,12 +2724,9 @@
                     progressBar.style.width = `${progress}%`;
 
                     if (animate) {
-                        // New "Stack" logic
                         wrapper.classList.remove('card-center-active');
-                        wrapper.classList.add('card-enter-stack'); // Scales up from behind
-                        
+                        wrapper.classList.add('card-enter-stack');
                         setupText();
-
                         requestAnimationFrame(() => {
                             setTimeout(() => {
                                 wrapper.classList.remove('card-enter-stack');
@@ -2456,37 +2741,36 @@
                     }
                 },
 
-                // 5. INTERACTION
-                flip() {
-                    const wrapper = document.getElementById('quiz-card-wrapper');
-                    wrapper.classList.add('is-flipped');
-                },
+                // 7. INTERACTION
+                flip() { document.getElementById('quiz-card-wrapper').classList.add('is-flipped'); },
 
                 async rate(status, points) {
                     if (this.session.isAnimating) return;
-                    
                     const s = this.session;
                     const card = s.deck[s.pointer];
                     
                     s.stats.score += points;
-                    App.State.srsData[card.id] = { status: status, lastReview: Date.now(), parentId: card.parentId };
-                    await App.DB.put('srs_data', null, { id: card.id, ...App.State.srsData[card.id] });
+                    
+                    // Save SRS Data
+                    const newData = { status: status, lastReview: Date.now(), parentId: card.parentId };
+                    App.State.srsData[card.id] = newData;
+                    await App.DB.put('srs_data', null, { id: card.id, ...newData });
+
+                    card.status = status; 
+                    card.lastReview = newData.lastReview;
 
                     this.nav(1);
                 },
 
                 nav(dir) {
                     if (this.session.isAnimating) return;
-
                     const s = this.session;
                     const wrapper = document.getElementById('quiz-card-wrapper');
 
                     if (dir === 1) {
-                        // NEXT
                         this.session.isAnimating = true;
                         wrapper.classList.remove('card-center-active');
-                        wrapper.classList.add('card-exit-left'); // Swipe Away
-
+                        wrapper.classList.add('card-exit-left');
                         setTimeout(() => {
                             wrapper.classList.remove('card-exit-left');
                             s.pointer++;
@@ -2494,74 +2778,56 @@
                         }, 300); 
                     } 
                     else if (dir === -1 && s.pointer > 0) {
-                        // PREV
                         s.pointer--;
                         this._renderCard(false);
                     }
                 },
 
-                // 6. SUMMARY & ANALYSIS (FIXED FOR PRACTICE MODE)
+                // 8. SUMMARY & STREAK SAVE
                 _finishSession() {
                     const s = this.session;
+                    
+                    // SAVE STREAK ON COMPLETION
+                    this.commitStreak();
+
                     document.getElementById('quiz-progress-bar').style.width = '100%';
                     const summaryContainer = document.getElementById('quiz-summary');
-                    const scorePct = Math.round((s.stats.score / s.deck.length) * 100) || 0;
+                    const scorePct = s.deck.length > 0 ? Math.round((s.stats.score / s.deck.length) * 100) : 0;
                     
                     let contentHtml = '';
+                    let title = "Session Complete";
+                    let btnAction = "App.Quiz.startTest()";
+                    let btnText = "New Session";
 
-                    if (s.mode === 'practice') {
-                        // --- PRACTICE MODE RESULT (No Score, Re-Practice Button) ---
-                        contentHtml = `
-                        <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
-                            <div style="font-size:4rem; margin-bottom:10px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));">📚</div>
-                            <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">Review Complete</h2>
-                            <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">You reviewed ${s.deck.length} flashcards.</p>
-                            
-                            <div style="display:flex; flex-direction:column; gap:12px;">
-                                <button class="btn-large btn-primary" onclick="App.Quiz.startPractice()">
-                                    <span>Practice Again</span> <span>↻</span>
-                                </button>
-                                <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
-                                    Return to Feed
-                                </button>
-                            </div>
-                        </div>`;
-                    } 
-                    else {
-                        // --- TEST MODE RESULT (Score, Daily Test Button) ---
-                        let emoji = '🤔'; let title = 'Keep Learning'; let msg = `You completed ${s.deck.length} cards.`;
-                        if(scorePct > 90) { emoji = '🔥'; title = 'Master Class!'; msg = 'Incredible retention.'; }
-                        else if(scorePct > 70) { emoji = '🎉'; title = 'Great Job!'; msg = 'Solid performance.'; }
-                        else if(scorePct > 40) { emoji = '👍'; title = 'Good Effort'; msg = 'Getting there.'; }
-
-                        contentHtml = `
-                        <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
-                            <div style="font-size:4rem; margin-bottom:10px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));">${emoji}</div>
-                            <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">${title}</h2>
-                            <div style="font-size:3.5rem; color:var(--text-main); font-weight:800; margin: 10px 0; font-family:var(--font-ui);">${scorePct}%</div>
-                            <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">${msg}</p>
-                            
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px;">
-                                <div style="background:var(--bg-card); padding:10px; border-radius:12px; border:1px solid var(--border-glass);">
-                                    <div style="font-size:0.8rem; color:var(--text-muted);">Cards</div>
-                                    <div style="font-weight:700; font-size:1.2rem;">${s.deck.length}</div>
-                                </div>
-                                <div style="background:var(--bg-card); padding:10px; border-radius:12px; border:1px solid var(--border-glass);">
-                                    <div style="font-size:0.8rem; color:var(--text-muted);">Accuracy</div>
-                                    <div style="font-weight:700; font-size:1.2rem;">${scorePct}%</div>
-                                </div>
-                            </div>
-
-                            <div style="display:flex; flex-direction:column; gap:12px;">
-                                <button class="btn-large btn-primary" onclick="App.Quiz.startTest()">
-                                    <span>Start New Session</span> <span>↻</span>
-                                </button>
-                                <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
-                                    Return to Feed
-                                </button>
-                            </div>
-                        </div>`;
+                    if(s.mode === 'practice') {
+                        title = "Queue Updated";
+                        btnAction = "App.Quiz.startPractice()";
+                        btnText = "Next Batch";
                     }
+                    if(s.mode === 'cram') {
+                        title = "Cram Finished";
+                        btnAction = "App.Quiz.startCram()";
+                        btnText = "Cram More";
+                    }
+
+                    // Dynamic Fire for Summary
+                    contentHtml = `
+                    <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
+                        <div style="font-size:4rem; margin-bottom:10px;">🔥</div>
+                        <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">${title}</h2>
+                        <div style="font-size:1rem; color:var(--primary); margin-bottom:15px; font-weight:bold;">Streak Saved!</div>
+                        
+                        <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">You reviewed ${s.deck.length} cards.</p>
+                        
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <button class="btn-large btn-primary" onclick="${btnAction}">
+                                <span>${btnText}</span> <span>↻</span>
+                            </button>
+                            <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
+                                Return to Feed
+                            </button>
+                        </div>
+                    </div>`;
 
                     summaryContainer.innerHTML = contentHtml;
                     summaryContainer.classList.add('visible');
@@ -2573,6 +2839,8 @@
                     this.session.isAnimating = false;
                     const wrapper = document.getElementById('quiz-card-wrapper');
                     wrapper.classList.remove('card-exit-left', 'card-center-active', 'card-enter-stack', 'is-flipped');
+                    
+                    this.updateStreakInfo(); 
                 }
             },
 
@@ -2580,6 +2848,12 @@
             UI: {
                 openModal(id) {
                     const el = document.getElementById(id);
+                    
+                    if(id === 'modal-quiz-menu') {
+                        if(App.Quiz && App.Quiz.updateStreakInfo) {
+                            App.Quiz.updateStreakInfo();
+                        }
+                    }
                     
                     if(id === 'modal-categories') {
                         this.renderCategoryChips();
