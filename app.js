@@ -439,7 +439,7 @@
                             summary: "Part III of the Constitution is called the Magna Carta of India. It guarantees civil liberties such as the Right to Equality (Articles 14-18). Article {{c1::17}} specifically abolishes Untouchability in all forms. Article {{c2::21}} provides the Right to Life and Personal Liberty, which has the widest interpretation by the Supreme Court. Dr. Ambedkar called Article 32 the 'Heart and Soul' of the Constitution."
                         },
                         {
-                            category: "International Relations", 
+                            category: "World", 
                             date: "Treaties",
                             image: "https://www.deccanchronicle.com/h-upload/2025/04/24/1911090-induswaterstreaty.jpg",
                             title: "Indus Water Treaty 1960 India Pakistan",
