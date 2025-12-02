@@ -1105,6 +1105,22 @@
                 startPractice() { this._boot('practice'); },
                 startCram() { this._boot('cram'); },
 
+                cycleFont() {
+                    const s = this.session;
+                    s.fontIndex = (s.fontIndex + 1) % s.fontLevels.length;
+                    
+                    const newSize = s.fontLevels[s.fontIndex];
+                    
+                    const els = [document.getElementById('fc-front-text'), document.getElementById('fc-back-text')];
+                    els.forEach(el => {
+                        if(el) {
+                            el.style.fontSize = newSize;
+                            el.style.transition = "font-size 0.2s ease";
+                        }
+                    });
+                    App.UI.toast(`Text Size: ${newSize}`);
+                },
+
                 _boot(mode) {
                     const deck = this.generateDeck(mode);
                     
@@ -1117,7 +1133,9 @@
                         mode: mode, deck: deck, pointer: 0,
                         stats: { score: 0 },
                         isAnimating: false,
-                        viewedInSession: new Set()
+                        viewedInSession: new Set(),
+                        fontLevels: ['0.9rem', '1rem', '1.2rem', '1.4rem', '1.7rem', '2rem'],
+                        fontIndex: 2
                     };
 
                     App.UI.closeModals();
@@ -1190,23 +1208,37 @@
                             'viewed': { cls: 'status-new', label: 'Viewed' }
                         };
                         const info = map[status] || map['new'];
-    
+
+                        const isEnlarged = App.Quiz.session.isLargeFont ? 'enlarged' : '';
+
                         return `
                         <div class="status-header">
                             <span class="clean-capsule ${info.cls}">${info.label}</span>
-                            <button class="capsule-reset-btn" onclick="event.stopPropagation(); App.Quiz.resetCard('${card.id}')" title="Reset Card">
-                                ↺
-                            </button>
+                            <div style="display:flex; gap:8px;">
+                                <button class="capsule-reset-btn" onclick="event.stopPropagation(); App.Quiz.cycleFont()" title="Change Size">
+                                    <span style="font-size:0.9rem; font-weight:800; letter-spacing:-1px;">Aa</span>
+                                </button>
+                                <button class="capsule-reset-btn" onclick="event.stopPropagation(); App.Quiz.resetCard('${card.id}')" title="Reset Card">
+                                    ↺
+                                </button>
+                            </div>
                         </div>`;
                     };
 
                     const setupText = () => {
                         const headerHTML = getCapsuleHTML(card.status || 'new');
-                        document.getElementById('fc-front-text').innerHTML = headerHTML + card.front;
-                        document.getElementById('fc-back-text').innerHTML = headerHTML + card.back;
+                        const fEl = document.getElementById('fc-front-text');
+                        const bEl = document.getElementById('fc-back-text');
+
+                        fEl.innerHTML = headerHTML + card.front;
+                        bEl.innerHTML = headerHTML + card.back;
+               
+                        const currentSize = s.fontLevels[s.fontIndex];
+                        fEl.style.fontSize = currentSize;
+                        bEl.style.fontSize = currentSize;
                         
-                        wrapper.classList.remove('is-flipped'); 
-                        
+                        wrapper.classList.remove('is-flipped');
+
                         const footer = document.getElementById('quiz-back-controls');
                         if (s.mode === 'test' || s.mode === 'cram') {
                              footer.innerHTML = `
