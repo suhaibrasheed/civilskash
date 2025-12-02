@@ -1691,95 +1691,129 @@
                 }
             },
 
-            // --- INIT ENGINE (The "Race" Logic) ---
+            // --- INIT ENGINE 
             async init() { 
                 try {
+                    // 1. SYSTEM BOOT
                     await this.DB.init();
                     this.PTR.init();
-                    
-                    // 1. Restore Preferences
-                    const savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
+
+                    // 2. RESTORE PREFERENCES
+                    let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
                     await App.Actions.setTheme(savedTheme); 
                     
-                    const savedLayout = await this.DB.get('settings', 'desktopLayout') || 'grid';
+                    let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'grid';
                     App.State.desktopLayout = savedLayout;
                     if(savedLayout === 'paper') document.getElementById('feed-list').classList.add('layout-paper');
                     const layoutSelect = document.getElementById('layout-select');
                     if(layoutSelect) layoutSelect.value = savedLayout;
 
+                    // 3. RESTORE DATA CONNECTIONS
                     const url = await this.DB.get('settings', 'contentUrl');
                     if (url) App.State.contentUrl = url;
                     
                     const storedBookmarks = await this.DB.get('bookmarks', 'ids');
                     if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
 
-                    // 2. Initial Render (Cache Strategy)
-                    App.State.feed = await App.Data.loadLocal();
+                    // 4. LOAD LOCAL CONTENT
+                    let localFeed = await App.Data.loadLocal();
+                    App.State.feed = localFeed;
                     App.UI.populateExportSelect(); 
-
+                    
+                    // 5. DEEP LINK INTELLIGENCE
                     const isDeepLink = App.Actions.checkDeepLinkMode();
                     
-                    if (!isDeepLink) {
-                        App.UI.renderFeed();
-                        this.hideLoader();
-                    } else {
-                        // Optimistic Deep Link Check (Local)
+                    if (isDeepLink) {
                         const targetId = App.State.activeDeepLink;
-                        const getSlug = (idStr) => (idStr || '').split('_').slice(2).join('_') || idStr;
-                        const targetSlug = getSlug(targetId);
 
-                        const foundLocal = App.State.feed.find(item => item.id === targetId || getSlug(item.id) === targetSlug);
-                        if (foundLocal) {
-                            App.State.activeDeepLink = foundLocal.id;
+                        // --- SMART MATCHING LOGIC ---
+                        const findMatch = (idFromUrl) => {
+                            // Strip "art_123_" prefix to get pure slug
+                            const targetSlug = idFromUrl.replace(/^art_\d+_/, ''); 
+                            
+                            return App.State.feed.find(item => {
+                                // A. Exact Match
+                                if (item.id === idFromUrl) return true;
+                                // B. Slug Match (Ignores index difference between Python/JS)
+                                const itemSlug = item.id.replace(/^art_\d+_/, '');
+                                if (itemSlug === targetSlug) return true;
+                                // C. Safety Match (Handles slight variations)
+                                if (targetSlug.length > 8 && itemSlug.length > 8) {
+                                    return targetSlug.includes(itemSlug) || itemSlug.includes(targetSlug);
+                                }
+                                return false;
+                            });
+                        };
+
+                        // Attempt 1: Check Local Cache
+                        let foundItem = findMatch(targetId);
+
+                        if (foundItem) {
+                            console.log(`✅ Deep Link Matched Locally: ${foundItem.id}`);
+                            App.State.activeDeepLink = foundItem.id;
                             App.UI.renderFeed();
                             this.hideLoader();
                         } else {
+                            // Attempt 2: Network Sync (WAIT for it)
+                            console.log("⚠️ Deep Link not in cache. Syncing...");
                             const loaderText = document.querySelector('#startup-loader div:nth-child(3)');
                             if(loaderText) loaderText.innerText = "Searching Archives...";
-                        }
-                    }
-
-                    // 3. Network Sync & Reconcile (The Fix)
-                    setTimeout(async () => {
-                        const freshData = await App.Data.syncNetwork();
-                        if (freshData) {
-                            const updatedFeed = App.Data.mergeStrategy(freshData);
+                          
+                            const freshData = await App.Data.syncNetwork();
                             
-                            // Check for changes to avoid unnecessary re-render
-                            if (JSON.stringify(updatedFeed.length) !== JSON.stringify(App.State.feed.length) || isDeepLink) {
-                                App.State.feed = updatedFeed;
+                            if (freshData) {
+                                App.State.feed = await App.Data.loadLocal(); // Reload state
+                                foundItem = findMatch(targetId); // Retry match
                                 
-                                if (isDeepLink) {
-                                    // Deep Link Re-Check after Sync
-                                    const targetId = App.State.activeDeepLink;
-                                    const getSlug = (idStr) => (idStr || '').split('_').slice(2).join('_') || idStr;
-                                    const targetSlug = getSlug(targetId);
-                                    
-                                    const foundLive = App.State.feed.find(item => item.id === targetId || getSlug(item.id) === targetSlug);
-                                    
-                                    if (foundLive) {
-                                        App.State.activeDeepLink = foundLive.id;
-                                        App.UI.renderFeed();
-                                    } else {
-                                        App.UI.toast("Note not found or deleted.");
-                                        App.Actions.goHome();
-                                    }
-                                    this.hideLoader();
-                                } else {
+                                if(foundItem) {
+                                    console.log(`✅ Deep Link Found after Sync: ${foundItem.id}`);
+                                    App.State.activeDeepLink = foundItem.id;
                                     App.UI.renderFeed();
-                                    App.UI.toast("New Articles Added ⚡");
+                                } else {
+                                    // --- STATIC GUARD (SEO FIX) ---
+                                    const container = document.getElementById('feed-list');
+                                    if (container && container.querySelector('.news-card')) {
+                                        console.log("Data missing, but Static HTML found. Preserving for SEO.");
+                                        this.hideLoader(); 
+                                        return; // STOP! Do not redirect.
+                                    }
+                                    
+                                    App.UI.toast("Note not found.");
+                                    App.Actions.goHome(); 
                                 }
+                            } else {
+                                // --- STATIC GUARD (NETWORK FAIL FIX) ---
+                                // If Network fails (Googlebot blocks it), check for Static Card.
+                                const container = document.getElementById('feed-list');
+                                if (container && container.querySelector('.news-card')) {
+                                    console.log("Network failed, preserving Static HTML for Bot/Offline.");
+                                    this.hideLoader();
+                                    return; // STOP! Do not redirect.
+                                }
+
+                                App.UI.toast("Note not available offline.");
+                                App.Actions.goHome();
                             }
-                        } else if (isDeepLink && document.getElementById('startup-loader').style.display !== 'none') {
-                            // Offline and Deep Link not found locally
-                            App.UI.toast("Offline: Note unavailable.");
-                            App.Actions.goHome();
                             this.hideLoader();
                         }
-                    }, 500);
+                    } else {
+                        // 6. STANDARD LAUNCH (No Deep Link)
+                        App.UI.renderFeed();
+                        this.hideLoader();
+                        
+                        // Background Sync
+                        setTimeout(async () => {
+                            const fresh = await App.Data.syncNetwork();
+                            if(fresh) {
+                                App.State.feed = await App.Data.loadLocal();
+                                App.UI.renderFeed();
+                                App.UI.toast("Feed Updated ⚡");
+                            }
+                        }, 1000);
+                    }
 
                 } catch (err) {
-                    console.error("Init Error", err);
+                    console.error("Critical Init Error", err);
                     App.State.feed = App.Data.getHardcodedData();
                     App.UI.renderFeed();
                     this.hideLoader(); 
