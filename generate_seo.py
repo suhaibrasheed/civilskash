@@ -8,7 +8,7 @@ import shutil
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
 
-# 1. HARDCODED DATA (Matches app.js)
+# 1. HARDCODED DATA 
 HARDCODED_DATA = [
     {"title": "Daily Current Affairs Quiz UPSC JKPSC", "summary": "Boost your preparation with high-yield MCQs for UPSC and JKPSC Prelims. Do you know 'Panchamrit' strategy from COP26, which relates to India's {{c1::Climate Action}} goals.", "category": "Current Affairs", "date": "Daily Update", "image": "https://tse3.mm.bing.net/th/id/OIP.WvbBV909fzI7zuLUadLrgQHaE6?rs=1&pid=ImgDetMain&o=7&rm=3"},
     {"title": "Schedules of Indian Constitution Mnemonic", "summary": "Memorizing the 12 Schedules of the Indian Constitution is crucial for matching questions in Prelims. Use the famous trick: '{{c1::TEARS OF OLD PM}}'.", "category": "Polity", "date": "Cheat Sheet", "image": "https://media.istockphoto.com/id/1007178836/photo/indian-supreme-court.jpg?s=612x612&w=0&k=20&c=sVUxnP1WCkC62og2fjbzgdUMleD3WoeOzbBgNiJ9y_Y="},
@@ -33,49 +33,26 @@ def clean_cloze(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
-# --- NEW: THE BUTCHER FUNCTION ---
-def strip_bloat(html_content):
+# --- THE NEW SURGEON FUNCTION ---
+def strip_bloat_via_markers(html_content):
     """
-    Physically removes the heavy modal divs from the HTML string.
-    """
-    # List of IDs to kill. Matches the structure <div id="ID"...> ... </div>
-    ids_to_kill = [
-        "modal-categories",
-        "modal-quiz-menu",
-        "quiz-fullscreen-layer",
-        "modal-share-menu",
-        "modal-notekash-tutorial",
-        "modal-settings",
-        "modal-force-update",
-        "modal-create-card"
-    ]
+    Removes everything between and """
+    start_marker = ''
+    end_marker = ''
     
-    clean_html = html_content
+    start_idx = html_content.find(start_marker)
+    end_idx = html_content.find(end_marker)
     
-    for div_id in ids_to_kill:
-        # Regex explanation:
-        # <div id="ID" ... >  : Match the opening tag
-        # .*?                 : Match everything inside (non-greedy)
-        # </div>\s*</div>     : Match the double closing divs (standard for your modals)
-        # Note: We use re.DOTALL so . matches newlines
-        
-        # 1. Try matching the standard modal structure (Backdrop -> Card)
-        pattern = rf'<div id="{div_id}".*?class="modal-backdrop".*?</div>\s*</div>'
-        clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
-        
-        # 2. Cleanup specifically for quiz-fullscreen-layer (different structure)
-        if div_id == "quiz-fullscreen-layer":
-             pattern_quiz = r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>\s*</div>' # It has nested structure
-             # Fallback: Just remove by ID loosely if exact structure varies
-             pattern_loose = r'<div id="quiz-fullscreen-layer".*?id="modal-share-menu"' 
-             # Since loose regex is risky, let's rely on the fact that your HTML is pretty standard.
-             # We will use a greedy block removal for the quiz layer specifically.
-             clean_html = re.sub(r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>', '', clean_html, flags=re.DOTALL)
-
-    return clean_html
+    if start_idx != -1 and end_idx != -1:
+        # Keep content BEFORE start, and content AFTER end
+        # We add len(end_marker) to skip the closing comment itself
+        return html_content[:start_idx] + html_content[end_idx + len(end_marker):]
+    
+    print("⚠️ Warning: SEO Markers not found in index.html. No bloat removed.")
+    return html_content
 
 def generate_site():
-    print("🚀 Starting SEO Generation (Lite Mode - Ultra Clean)...")
+    print("🚀 Starting SEO Generation (Marker Mode)...")
     
     try:
         response = requests.get(f"{DATA_URL}?t=seo_gen")
@@ -86,9 +63,9 @@ def generate_site():
         sheet_data = []
 
     combined_raw = sheet_data + HARDCODED_DATA
-    combined_raw.reverse()
-    full_data = combined_raw
-
+    combined_raw.reverse() # Latest first
+    
+    # Read template
     with open("index.html", "r", encoding="utf-8") as f:
         template = f.read()
 
@@ -99,9 +76,9 @@ def generate_site():
         shutil.rmtree("notes")
     os.makedirs("notes")
 
-    print(f"⚡ Generating {len(full_data)} pages inside /notes/ ...")
+    print(f"⚡ Generating {len(combined_raw)} pages...")
 
-    for idx, item in enumerate(full_data):
+    for idx, item in enumerate(combined_raw):
         slug = clean_slug(item.get('title', 'note'))
         unique_id = item.get('id') or f"art_{idx}_{slug}"
         
@@ -109,15 +86,19 @@ def generate_site():
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # PREPARE DATA
         page_title = f"{item.get('title')} - CivilsKash"
         clean_summary = clean_cloze(item.get('summary', ''))
         page_desc = clean_summary[:160].replace('"', "'").replace('\n', ' ')
         page_url = f"{BASE_URL}/notes/{unique_id}/"
 
-        # --- HTML INJECTION ---
+        # --- PROCESS HTML ---
         new_html = template
         
-        # 1. SEO Metas
+        # 1. CUT THE FAT (First operation)
+        new_html = strip_bloat_via_markers(new_html)
+
+        # 2. INJECT META
         new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
         new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
         new_html = new_html.replace(
@@ -129,7 +110,7 @@ def generate_site():
             f'<meta property="og:url" content="{page_url}">'
         )
 
-        # 2. Inject Content
+        # 3. INJECT CARD CONTENT
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
@@ -151,14 +132,13 @@ def generate_site():
         """
         new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
         
-        # 3. Path Fixes
+        # 4. FIX PATHS & DISABLE BUTTONS
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
 
-        # 4. HEADER NEUTRALIZATION (Prevent console errors)
-        # We still need this so header buttons don't fire undefined JS functions
+        # Neutralize Header
         new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
@@ -166,30 +146,24 @@ def generate_site():
         new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
         new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
 
-        # 5. THE BUTCHER (Strip HTML Bloat)
-        # This removes the actual <div id="modal-..."> code blocks
-        new_html = strip_bloat(new_html)
-
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
             f.write(new_html)
             
         sitemap_urls.append(page_url)
 
-    # Sitemap Gen
+    # SITEMAP
     print("🗺️  Updating sitemap.xml...")
     sitemap_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     sitemap_content += f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n'
-    
     for url in sitemap_urls:
         sitemap_content += f'  <url><loc>{url}</loc><changefreq>weekly</changefreq></url>\n'
-        
     sitemap_content += '</urlset>'
     
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO Fixed: Bloat Removed & Lite Mode Active.")
+    print("✅ Done! Files are optimized and clean.")
 
 if __name__ == "__main__":
     generate_site()
