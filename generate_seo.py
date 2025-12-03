@@ -8,7 +8,7 @@ import shutil
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
 
-# 1. HARDCODED DATA (Matches app.js)
+# 1. HARDCODED DATA
 HARDCODED_DATA = [
     {"title": "Daily Current Affairs Quiz UPSC JKPSC", "summary": "Boost your preparation with high-yield MCQs for UPSC and JKPSC Prelims. Do you know 'Panchamrit' strategy from COP26, which relates to India's {{c1::Climate Action}} goals.", "category": "Current Affairs", "date": "Daily Update", "image": "https://tse3.mm.bing.net/th/id/OIP.WvbBV909fzI7zuLUadLrgQHaE6?rs=1&pid=ImgDetMain&o=7&rm=3"},
     {"title": "Schedules of Indian Constitution Mnemonic", "summary": "Memorizing the 12 Schedules of the Indian Constitution is crucial for matching questions in Prelims. Use the famous trick: '{{c1::TEARS OF OLD PM}}'.", "category": "Polity", "date": "Cheat Sheet", "image": "https://media.istockphoto.com/id/1007178836/photo/indian-supreme-court.jpg?s=612x612&w=0&k=20&c=sVUxnP1WCkC62og2fjbzgdUMleD3WoeOzbBgNiJ9y_Y="},
@@ -33,12 +33,19 @@ def clean_cloze(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
-# --- NEW: THE BUTCHER FUNCTION ---
+# --- THE BUTCHER 2.0 (Polished) ---
 def strip_bloat(html_content):
     """
-    Physically removes the heavy modal divs from the HTML string.
+    1. Removes content between and 2. Removes specific Modal IDs.
     """
-    # List of IDs to kill. Matches the structure <div id="ID"...> ... </div>
+    clean_html = html_content
+
+    # 1. KILL THE FEATURISTICS BLOCK (Streak, Quiz Buttons, etc.)
+    # This looks for the start comment, matches everything (.*?) including newlines (DOTALL), and the end comment.
+    pattern_featuristics = r'.*?'
+    clean_html = re.sub(pattern_featuristics, '', clean_html, flags=re.DOTALL | re.IGNORECASE)
+
+    # 2. KILL THE MODALS (Standard Logic)
     ids_to_kill = [
         "modal-categories",
         "modal-quiz-menu",
@@ -50,27 +57,17 @@ def strip_bloat(html_content):
         "modal-create-card"
     ]
     
-    clean_html = html_content
-    
     for div_id in ids_to_kill:
-        # Regex explanation:
-        # <div id="ID" ... >  : Match the opening tag
-        # .*?                 : Match everything inside (non-greedy)
-        # </div>\s*</div>     : Match the double closing divs (standard for your modals)
-        # Note: We use re.DOTALL so . matches newlines
-        
-        # 1. Try matching the standard modal structure (Backdrop -> Card)
-        pattern = rf'<div id="{div_id}".*?class="modal-backdrop".*?</div>\s*</div>'
-        clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
-        
-        # 2. Cleanup specifically for quiz-fullscreen-layer (different structure)
+        # Matches <div id="ID" ...> ... </div> ... </div>
+        # Using DOTALL so . matches newlines
         if div_id == "quiz-fullscreen-layer":
-             pattern_quiz = r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>\s*</div>' # It has nested structure
-             # Fallback: Just remove by ID loosely if exact structure varies
-             pattern_loose = r'<div id="quiz-fullscreen-layer".*?id="modal-share-menu"' 
-             # Since loose regex is risky, let's rely on the fact that your HTML is pretty standard.
-             # We will use a greedy block removal for the quiz layer specifically.
+             # Special handling for deep nesting if needed, or loosely match
+             clean_html = re.sub(r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>\s*</div>', '', clean_html, flags=re.DOTALL)
+             # Backup cleanup in case structure varies slightly
              clean_html = re.sub(r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>', '', clean_html, flags=re.DOTALL)
+        else:
+             pattern = rf'<div id="{div_id}".*?class="modal-backdrop".*?</div>\s*</div>'
+             clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
 
     return clean_html
 
@@ -88,6 +85,11 @@ def generate_site():
     combined_raw = sheet_data + HARDCODED_DATA
     combined_raw.reverse()
     full_data = combined_raw
+
+    # Ensure we are reading the template that HAS the comments
+    if not os.path.exists("index.html"):
+        print("❌ Error: index.html template not found!")
+        return
 
     with open("index.html", "r", encoding="utf-8") as f:
         template = f.read()
@@ -158,7 +160,6 @@ def generate_site():
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
 
         # 4. HEADER NEUTRALIZATION (Prevent console errors)
-        # We still need this so header buttons don't fire undefined JS functions
         new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
@@ -166,8 +167,7 @@ def generate_site():
         new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
         new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
 
-        # 5. THE BUTCHER (Strip HTML Bloat)
-        # This removes the actual <div id="modal-..."> code blocks
+        # 5. THE BUTCHER (Strip HTML Bloat & Featuristics)
         new_html = strip_bloat(new_html)
 
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
@@ -189,7 +189,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO Fixed: Bloat Removed & Lite Mode Active.")
+    print("✅ Done! Featuristics removed, SEO Optimized.")
 
 if __name__ == "__main__":
     generate_site()
