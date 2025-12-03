@@ -35,7 +35,7 @@ def clean_cloze(text):
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
 def generate_site():
-    print("🚀 Starting SEO Generation...")
+    print("🚀 Starting SEO Generation (Lite Mode)...")
     
     # 2. FETCH GOOGLE SHEETS DATA
     try:
@@ -91,9 +91,7 @@ def generate_site():
         # 2. Inject Description
         new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
         
-        # 3. Inject Canonical & OG URL (FIXED: REPLACES the hardcoded one instead of adding a duplicate)
-        # We look for the exact string found in your index.html and swap it.
-        
+        # 3. Inject Canonical & OG URL (FIXED: REPLACES the hardcoded one)
         # Fix the Canonical Link
         new_html = new_html.replace(
             '<link rel="canonical" href="https://civilskash.in/" />', 
@@ -107,7 +105,6 @@ def generate_site():
         )
 
         # 4. Inject Static Card HTML (Fixes Screenshot / Empty Shell)
-        # We put the article HTML directly into the #feed-list div so Google sees it instantly.
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
@@ -136,6 +133,24 @@ def generate_site():
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
 
+        # --- LITE MODE CUT-ACROSS (New Feature) ---
+        # We neutralize the inline onclick handlers in the header.
+        # This prevents errors if clicked before JS loads, and lets App.Lite bind the "Go Home" logic.
+        
+        # Settings
+        new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
+        # Quiz
+        new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
+        # Categories
+        new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
+        # Bookmarks (Toggle)
+        new_html = new_html.replace("App.Actions.toggleBookmarksFilter()", "void(0)")
+        # Sync
+        new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
+        # Brand Home Click (Ensure it's a hard link for SEO)
+        new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
+
+        # Write the file
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
             f.write(new_html)
             
@@ -155,7 +170,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO Fixed: Unique Canonicals & OG Tags injected.")
+    print("✅ Done! SEO Fixed: Canonicals set, Lite Mode Active (Redirects injected).")
 
 if __name__ == "__main__":
     generate_site()
