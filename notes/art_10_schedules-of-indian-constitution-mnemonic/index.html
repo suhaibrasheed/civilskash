@@ -54,26 +54,26 @@
     </div>
 
     <header>
-        <h1 class="brand" onclick="App.Actions.goHome()">Civils<span>Kash</span></h1>
+        <h1 class="brand" onclick="window.location.href='https://civilskash.in'">Civils<span>Kash</span></h1>
         <div class="header-actions">
-            <button class="icon-btn" id="sync-btn" onclick="App.Actions.triggerSync()" title="Check for Latest Feed">
+            <button class="icon-btn" id="sync-btn" onclick="void(0)" title="Check for Latest Feed">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
-            <button class="icon-btn" id="category-btn" onclick="App.UI.openModal('modal-categories')" title="Filter Categories">
+            <button class="icon-btn" id="category-btn" onclick="void(0)" title="Filter Categories">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
                 <span class="badge-dot" id="category-active-badge"></span>
             </button>
             
-            <button class="icon-btn" id="bookmarks-btn" onclick="App.Actions.toggleBookmarksFilter()" title="Show Bookmarks Only">
+            <button class="icon-btn" id="bookmarks-btn" onclick="void(0)" title="Show Bookmarks Only">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
             </button>
             
             
-            <button class="icon-btn" onclick="App.UI.openModal('modal-quiz-menu')" title="Practice & Quiz">
+            <button class="icon-btn" onclick="void(0)" title="Practice & Quiz">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
             </button>
             
-            <button class="icon-btn" onclick="App.UI.openModal('modal-settings')" title="Settings">
+            <button class="icon-btn" onclick="void(0)" title="Settings">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
              <button class="icon-btn" id="global-hide-btn" onclick="App.Actions.toggleGlobalHide()" title="Toggle Keywords">
