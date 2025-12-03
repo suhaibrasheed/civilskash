@@ -29,15 +29,54 @@ def clean_slug(text):
     slug = re.sub(r'[^a-z0-9]+', '-', slug)
     return slug.strip('-')
 
-# Helper to remove {{c1::text}} syntax for clean SEO text
 def clean_cloze(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
-def generate_site():
-    print("🚀 Starting SEO Generation (Lite Mode)...")
+# --- NEW: THE BUTCHER FUNCTION ---
+def strip_bloat(html_content):
+    """
+    Physically removes the heavy modal divs from the HTML string.
+    """
+    # List of IDs to kill. Matches the structure <div id="ID"...> ... </div>
+    ids_to_kill = [
+        "modal-categories",
+        "modal-quiz-menu",
+        "quiz-fullscreen-layer",
+        "modal-share-menu",
+        "modal-notekash-tutorial",
+        "modal-settings",
+        "modal-force-update",
+        "modal-create-card"
+    ]
     
-    # 2. FETCH GOOGLE SHEETS DATA
+    clean_html = html_content
+    
+    for div_id in ids_to_kill:
+        # Regex explanation:
+        # <div id="ID" ... >  : Match the opening tag
+        # .*?                 : Match everything inside (non-greedy)
+        # </div>\s*</div>     : Match the double closing divs (standard for your modals)
+        # Note: We use re.DOTALL so . matches newlines
+        
+        # 1. Try matching the standard modal structure (Backdrop -> Card)
+        pattern = rf'<div id="{div_id}".*?class="modal-backdrop".*?</div>\s*</div>'
+        clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
+        
+        # 2. Cleanup specifically for quiz-fullscreen-layer (different structure)
+        if div_id == "quiz-fullscreen-layer":
+             pattern_quiz = r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>\s*</div>' # It has nested structure
+             # Fallback: Just remove by ID loosely if exact structure varies
+             pattern_loose = r'<div id="quiz-fullscreen-layer".*?id="modal-share-menu"' 
+             # Since loose regex is risky, let's rely on the fact that your HTML is pretty standard.
+             # We will use a greedy block removal for the quiz layer specifically.
+             clean_html = re.sub(r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>', '', clean_html, flags=re.DOTALL)
+
+    return clean_html
+
+def generate_site():
+    print("🚀 Starting SEO Generation (Lite Mode - Ultra Clean)...")
+    
     try:
         response = requests.get(f"{DATA_URL}?t=seo_gen")
         sheet_data = response.json()
@@ -46,18 +85,15 @@ def generate_site():
         print(f"❌ Error fetching data: {e}")
         sheet_data = []
 
-    # 3. MERGE LOGIC (Crucial: Matches App Logic)
     combined_raw = sheet_data + HARDCODED_DATA
-    combined_raw.reverse() # Latest first
+    combined_raw.reverse()
     full_data = combined_raw
 
-    # Read template
     with open("index.html", "r", encoding="utf-8") as f:
         template = f.read()
 
     sitemap_urls = []
     
-    # 4. CLEANUP
     print("🧹 Cleaning old folders...")
     if os.path.exists("notes"):
         shutil.rmtree("notes")
@@ -73,38 +109,27 @@ def generate_site():
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        # PREPARE SEO CONTENT
         page_title = f"{item.get('title')} - CivilsKash"
         clean_summary = clean_cloze(item.get('summary', ''))
-        # Limit description to 160 chars, remove quotes/newlines
         page_desc = clean_summary[:160].replace('"', "'").replace('\n', ' ')
-        
-        # URL for Canonical
         page_url = f"{BASE_URL}/notes/{unique_id}/"
 
         # --- HTML INJECTION ---
         new_html = template
         
-        # 1. Inject Title
+        # 1. SEO Metas
         new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
-        
-        # 2. Inject Description
         new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
-        
-        # 3. Inject Canonical & OG URL (FIXED: REPLACES the hardcoded one)
-        # Fix the Canonical Link
         new_html = new_html.replace(
             '<link rel="canonical" href="https://civilskash.in/" />', 
             f'<link rel="canonical" href="{page_url}" />'
         )
-        
-        # Fix the Open Graph URL (for social media)
         new_html = new_html.replace(
             '<meta property="og:url" content="https://civilskash.in">', 
             f'<meta property="og:url" content="{page_url}">'
         )
 
-        # 4. Inject Static Card HTML (Fixes Screenshot / Empty Shell)
+        # 2. Inject Content
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
@@ -124,39 +149,33 @@ def generate_site():
             </div>
         </article>
         """
-        # Replace the empty div with our filled card
         new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
         
-        # 5. FIX RELATIVE PATHS (Going 2 levels deep: notes/art_x/)
+        # 3. Path Fixes
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
 
-        # --- LITE MODE CUT-ACROSS (New Feature) ---
-        # We neutralize the inline onclick handlers in the header.
-        # This prevents errors if clicked before JS loads, and lets App.Lite bind the "Go Home" logic.
-        
-        # Settings
+        # 4. HEADER NEUTRALIZATION (Prevent console errors)
+        # We still need this so header buttons don't fire undefined JS functions
         new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
-        # Quiz
         new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
-        # Categories
         new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
-        # Bookmarks (Toggle)
         new_html = new_html.replace("App.Actions.toggleBookmarksFilter()", "void(0)")
-        # Sync
         new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
-        # Brand Home Click (Ensure it's a hard link for SEO)
         new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
 
-        # Write the file
+        # 5. THE BUTCHER (Strip HTML Bloat)
+        # This removes the actual <div id="modal-..."> code blocks
+        new_html = strip_bloat(new_html)
+
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
             f.write(new_html)
             
         sitemap_urls.append(page_url)
 
-    # 7. UPDATE SITEMAP
+    # Sitemap Gen
     print("🗺️  Updating sitemap.xml...")
     sitemap_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
     sitemap_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -170,7 +189,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO Fixed: Canonicals set, Lite Mode Active (Redirects injected).")
+    print("✅ Done! SEO Fixed: Bloat Removed & Lite Mode Active.")
 
 if __name__ == "__main__":
     generate_site()
