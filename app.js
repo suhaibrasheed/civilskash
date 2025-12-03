@@ -18,6 +18,63 @@
         };
 
         const App = {
+            // 1. ADD LITE MODE DETECTION
+            isLiteMode: window.location.pathname.includes('/notes/'),
+
+            // 2. NEW "LITE" MODULE (Handles SEO Pages)
+            Lite: {
+                init() {
+                    console.log("🚀 Lite Mode Active: SEO Optimized");
+                    this.setupToast();
+                    this.bindRedirects();
+                    
+                    const loader = document.getElementById('startup-loader');
+                    if(loader) loader.style.display = 'none';
+                },
+
+                setupToast() {
+                    if(!document.getElementById('toast')) {
+                        const t = document.createElement('div');
+                        t.id = 'toast'; 
+                        document.body.appendChild(t);
+                    }
+                },
+
+                bindRedirects() {
+                    const headerBtns = document.querySelectorAll('header .icon-btn');
+                    
+                    headerBtns.forEach(btn => {
+                        if (btn.closest('.brand')) return;
+
+                        const newBtn = btn.cloneNode(true);
+                        btn.parentNode.replaceChild(newBtn, btn);
+                      
+                        newBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            this.redirectWithMessage();
+                        });
+                    });
+                },
+
+                redirectWithMessage() {
+                    // Show Toast
+                    const t = document.getElementById('toast');
+                    if(t) {
+                        t.innerText = "✨ Launching Full App...";
+                        t.classList.add('show');
+                    }
+                    
+                    // Visual Feedback
+                    document.body.style.transition = "opacity 0.5s";
+                    document.body.style.opacity = '0.6';
+                    
+                    // Redirect after brief delay
+                    setTimeout(() => {
+                        window.location.href = 'https://civilskash.in';
+                    }, 800);
+                }
+            },
             // --- DATABASE LAYER (Robust) ---
             DB: {
                 dbName: 'CivilsKashDB',
@@ -1694,6 +1751,13 @@
             // --- INIT ENGINE 
             async init() { 
                 try {
+                    
+                    // LITE MODE CHECK (The Gatekeeper)
+                    if (this.isLiteMode) {
+                        this.hideLoader(); 
+                        this.Lite.init();  
+                        return;            
+                    }
                     // 1. SYSTEM BOOT
                     await this.DB.init();
                     this.PTR.init();
@@ -1819,6 +1883,7 @@
                     this.hideLoader(); 
                 }
             },
+            
 
             hideLoader() {
                 const loader = document.getElementById('startup-loader');
