@@ -35,7 +35,7 @@ def clean_cloze(text):
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
 def generate_site():
-    print("🚀 Starting SEO Generation...")
+    print("🚀 Starting SEO Generation (Lite Mode)...")
     
     # 2. FETCH GOOGLE SHEETS DATA
     try:
@@ -46,23 +46,14 @@ def generate_site():
         print(f"❌ Error fetching data: {e}")
         sheet_data = []
 
-    # 3. MERGE LOGIC
+    # 3. MERGE LOGIC (Crucial: Matches App Logic)
     combined_raw = sheet_data + HARDCODED_DATA
     combined_raw.reverse() # Latest first
     full_data = combined_raw
 
     # Read template
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            template = f.read()
-    except FileNotFoundError:
-        print("❌ Error: index.html not found. Please ensure it exists in the same directory.")
-        return
-
-    # Check for the user's specific markers
-    if "starting of featuristics" not in template:
-        print("⚠️ WARNING: The marker '' was not found in index.html.")
-        print("   The script will continue, but the features/modals will NOT be stripped.")
+    with open("index.html", "r", encoding="utf-8") as f:
+        template = f.read()
 
     sitemap_urls = []
     
@@ -94,31 +85,26 @@ def generate_site():
         # --- HTML INJECTION ---
         new_html = template
         
-        # 0. STRIP HEAVY FEATURES (STRICT MARKER LOGIC)
-        # This regex removes everything between the specific comments requested.
-        # It uses DOTALL to span multiple lines and IGNORECASE to match casing variations.
-        pattern = r".*?"
-        new_html = re.sub(pattern, "", new_html, flags=re.DOTALL | re.IGNORECASE)
-
         # 1. Inject Title
         new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
         
         # 2. Inject Description
         new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
         
-        # 3. Inject Canonical & OG URL
+        # 3. Inject Canonical & OG URL (FIXED: REPLACES the hardcoded one)
+        # Fix the Canonical Link
         new_html = new_html.replace(
             '<link rel="canonical" href="https://civilskash.in/" />', 
             f'<link rel="canonical" href="{page_url}" />'
         )
         
+        # Fix the Open Graph URL (for social media)
         new_html = new_html.replace(
             '<meta property="og:url" content="https://civilskash.in">', 
             f'<meta property="og:url" content="{page_url}">'
         )
 
-        # 4. Inject Static Card HTML
-        # This injects the article logic into the feed-list, ensuring the core functionality works.
+        # 4. Inject Static Card HTML (Fixes Screenshot / Empty Shell)
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
@@ -141,12 +127,30 @@ def generate_site():
         # Replace the empty div with our filled card
         new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
         
-        # 5. FIX RELATIVE PATHS
+        # 5. FIX RELATIVE PATHS (Going 2 levels deep: notes/art_x/)
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
 
+        # --- LITE MODE CUT-ACROSS (New Feature) ---
+        # We neutralize the inline onclick handlers in the header.
+        # This prevents errors if clicked before JS loads, and lets App.Lite bind the "Go Home" logic.
+        
+        # Settings
+        new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
+        # Quiz
+        new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
+        # Categories
+        new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
+        # Bookmarks (Toggle)
+        new_html = new_html.replace("App.Actions.toggleBookmarksFilter()", "void(0)")
+        # Sync
+        new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
+        # Brand Home Click (Ensure it's a hard link for SEO)
+        new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
+
+        # Write the file
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
             f.write(new_html)
             
@@ -166,7 +170,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO Fixed: Features stripped between 'starting of featuristics' and 'ending of featuristics'.")
+    print("✅ Done! SEO Fixed: Canonicals set, Lite Mode Active (Redirects injected).")
 
 if __name__ == "__main__":
     generate_site()
