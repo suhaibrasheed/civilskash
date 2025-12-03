@@ -8,7 +8,7 @@ import shutil
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
 
-# 1. HARDCODED DATA
+# 1. HARDCODED DATA (Matches app.js)
 HARDCODED_DATA = [
     {"title": "Daily Current Affairs Quiz UPSC JKPSC", "summary": "Boost your preparation with high-yield MCQs for UPSC and JKPSC Prelims. Do you know 'Panchamrit' strategy from COP26, which relates to India's {{c1::Climate Action}} goals.", "category": "Current Affairs", "date": "Daily Update", "image": "https://tse3.mm.bing.net/th/id/OIP.WvbBV909fzI7zuLUadLrgQHaE6?rs=1&pid=ImgDetMain&o=7&rm=3"},
     {"title": "Schedules of Indian Constitution Mnemonic", "summary": "Memorizing the 12 Schedules of the Indian Constitution is crucial for matching questions in Prelims. Use the famous trick: '{{c1::TEARS OF OLD PM}}'.", "category": "Polity", "date": "Cheat Sheet", "image": "https://media.istockphoto.com/id/1007178836/photo/indian-supreme-court.jpg?s=612x612&w=0&k=20&c=sVUxnP1WCkC62og2fjbzgdUMleD3WoeOzbBgNiJ9y_Y="},
@@ -52,8 +52,17 @@ def generate_site():
     full_data = combined_raw
 
     # Read template
-    with open("index.html", "r", encoding="utf-8") as f:
-        template = f.read()
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            template = f.read()
+    except FileNotFoundError:
+        print("❌ Error: index.html not found. Please ensure it exists in the same directory.")
+        return
+
+    # Check for the user's specific markers
+    if "starting of featuristics" not in template:
+        print("⚠️ WARNING: The marker '' was not found in index.html.")
+        print("   The script will continue, but the features/modals will NOT be stripped.")
 
     sitemap_urls = []
     
@@ -85,12 +94,12 @@ def generate_site():
         # --- HTML INJECTION ---
         new_html = template
         
-        # 0. STRIP HEAVY FEATURES (FIXED LOGIC)
-        # We perform this BEFORE other substitutions.
-        # This removes everything between the start and end markers (Modals, Quizzes, Settings).
-        pattern = r'.*?'
-        new_html = re.sub(pattern, '', new_html, flags=re.DOTALL)
-        
+        # 0. STRIP HEAVY FEATURES (STRICT MARKER LOGIC)
+        # This regex removes everything between the specific comments requested.
+        # It uses DOTALL to span multiple lines and IGNORECASE to match casing variations.
+        pattern = r".*?"
+        new_html = re.sub(pattern, "", new_html, flags=re.DOTALL | re.IGNORECASE)
+
         # 1. Inject Title
         new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
         
@@ -108,7 +117,8 @@ def generate_site():
             f'<meta property="og:url" content="{page_url}">'
         )
 
-        # 4. Inject Static Card HTML (Fixes Screenshot / Empty Shell)
+        # 4. Inject Static Card HTML
+        # This injects the article logic into the feed-list, ensuring the core functionality works.
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
@@ -156,7 +166,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO Fixed: Heavy features stripped.")
+    print("✅ Done! SEO Fixed: Features stripped between 'starting of featuristics' and 'ending of featuristics'.")
 
 if __name__ == "__main__":
     generate_site()
