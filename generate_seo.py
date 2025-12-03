@@ -91,13 +91,23 @@ def generate_site():
         # 2. Inject Description
         new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
         
-        # 3. Inject Canonical (NEW FEATURE)
-        canonical_tag = f'<link rel="canonical" href="{page_url}" />'
-        new_html = new_html.replace('</head>', f'{canonical_tag}\n</head>')
+        # 3. Inject Canonical & OG URL (FIXED: REPLACES the hardcoded one instead of adding a duplicate)
+        # We look for the exact string found in your index.html and swap it.
+        
+        # Fix the Canonical Link
+        new_html = new_html.replace(
+            '<link rel="canonical" href="https://civilskash.in/" />', 
+            f'<link rel="canonical" href="{page_url}" />'
+        )
+        
+        # Fix the Open Graph URL (for social media)
+        new_html = new_html.replace(
+            '<meta property="og:url" content="https://civilskash.in">', 
+            f'<meta property="og:url" content="{page_url}">'
+        )
 
-        # 4. Inject Static Card HTML (NEW FEATURE - Fixes Screenshot)
+        # 4. Inject Static Card HTML (Fixes Screenshot / Empty Shell)
         # We put the article HTML directly into the #feed-list div so Google sees it instantly.
-        # Note: We use inline styles or simple classes that match your CSS.
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
@@ -145,7 +155,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! Static HTML Cards & Canonicals added.")
+    print("✅ Done! SEO Fixed: Unique Canonicals & OG Tags injected.")
 
 if __name__ == "__main__":
     generate_site()
