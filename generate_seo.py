@@ -33,41 +33,47 @@ def clean_cloze(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
-# --- THE BUTCHER 2.0 (Polished) ---
+# --- THE FIX: ZONE DELETION ---
 def strip_bloat(html_content):
-    """
-    1. Removes content between and 2. Removes specific Modal IDs.
-    """
+
     clean_html = html_content
 
-    # 1. KILL THE FEATURISTICS BLOCK (Streak, Quiz Buttons, etc.)
-    # This looks for the start comment, matches everything (.*?) including newlines (DOTALL), and the end comment.
-    pattern_featuristics = r'.*?'
-    clean_html = re.sub(pattern_featuristics, '', clean_html, flags=re.DOTALL | re.IGNORECASE)
-
-    # 2. KILL THE MODALS (Standard Logic)
-    ids_to_kill = [
-        "modal-categories",
-        "modal-quiz-menu",
-        "quiz-fullscreen-layer",
-        "modal-share-menu",
-        "modal-notekash-tutorial",
-        "modal-settings",
-        "modal-force-update",
-        "modal-create-card"
-    ]
+    # 1. THE NUCLEAR OPTION
     
-    for div_id in ids_to_kill:
-        # Matches <div id="ID" ...> ... </div> ... </div>
-        # Using DOTALL so . matches newlines
-        if div_id == "quiz-fullscreen-layer":
-             # Special handling for deep nesting if needed, or loosely match
-             clean_html = re.sub(r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>\s*</div>', '', clean_html, flags=re.DOTALL)
-             # Backup cleanup in case structure varies slightly
-             clean_html = re.sub(r'<div id="quiz-fullscreen-layer".*?</div>\s*</div>', '', clean_html, flags=re.DOTALL)
-        else:
-             pattern = rf'<div id="{div_id}".*?class="modal-backdrop".*?</div>\s*</div>'
-             clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
+    # We look for the start of the first modal
+    start_marker = '<div id="modal-categories"'
+    # We look for the start of the toast (which comes immediately after the modals)
+    end_marker = '<div id="toast"'
+    
+    start_idx = clean_html.find(start_marker)
+    end_idx = clean_html.find(end_marker)
+    
+    if start_idx != -1 and end_idx != -1:
+        # Keep everything BEFORE the first modal
+        # Keep everything AFTER (and including) the toast
+        # Everything in between is deleted.
+        print("✂️  Cutting out the entire Modal Zone...")
+        clean_html = clean_html[:start_idx] + clean_html[end_idx:]
+    
+    else:
+        # Fallback: If markers moved, try the Regex Lookahead method
+        # This deletes from <div id="X"> until it sees <div id=" or <script
+        ids_to_kill = [
+            "modal-categories",
+            "modal-quiz-menu",
+            "quiz-fullscreen-layer",
+            "modal-share-menu",
+            "modal-notekash-tutorial",
+            "modal-settings",
+            "modal-force-update",
+            "modal-create-card"
+        ]
+        print("⚠️  Zone marker not found. Using Fallback Surgical Removal...")
+        for div_id in ids_to_kill:
+            # Match <div id="ID"> ... everything ... UNTIL matching <div id= or <script
+            # (?=...) is a Lookahead. It stops exactly before the next tag starts.
+            pattern = rf'<div id="{div_id}".*?(?=<div id=|<script)'
+            clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
 
     return clean_html
 
@@ -85,11 +91,6 @@ def generate_site():
     combined_raw = sheet_data + HARDCODED_DATA
     combined_raw.reverse()
     full_data = combined_raw
-
-    # Ensure we are reading the template that HAS the comments
-    if not os.path.exists("index.html"):
-        print("❌ Error: index.html template not found!")
-        return
 
     with open("index.html", "r", encoding="utf-8") as f:
         template = f.read()
@@ -159,7 +160,7 @@ def generate_site():
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
 
-        # 4. HEADER NEUTRALIZATION (Prevent console errors)
+        # 4. HEADER NEUTRALIZATION
         new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
@@ -167,7 +168,7 @@ def generate_site():
         new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
         new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
 
-        # 5. THE BUTCHER (Strip HTML Bloat & Featuristics)
+        # 5. THE BUTCHER (Strip HTML Bloat)
         new_html = strip_bloat(new_html)
 
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
@@ -189,7 +190,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! Featuristics removed, SEO Optimized.")
+    print("✅ Done! Featuristics removed cleanly.")
 
 if __name__ == "__main__":
     generate_site()
