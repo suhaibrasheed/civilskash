@@ -136,7 +136,7 @@ def strip_bloat(html_content):
     ids_to_kill = [
         "modal-categories", "modal-quiz-menu", "quiz-fullscreen-layer",
         "modal-share-menu", "modal-notekash-tutorial", "modal-settings",
-        "modal-force-update", "modal-create-card"
+        "modal-force-update", "modal-create-card", "quiz-summary"
     ]
     for div_id in ids_to_kill:
         pattern = rf'<div id="{div_id}".*?(?=<div id=|<script)'
