@@ -49,17 +49,17 @@
     </div>
 
     <header>
-        <h1 class="brand" onclick="window.location.href='https://civilskash.in'">Civils<span>Kash</span></h1>
+        <h1 class="brand" onclick="App.Actions.goHome()">Civils<span>Kash</span></h1>
         <div class="header-actions">
-            <button class="icon-btn" id="sync-btn" onclick="void(0)" title="Check for Latest Feed">
+            <button class="icon-btn" id="sync-btn" onclick="App.Actions.triggerSync()" title="Check for Latest Feed">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
-            <button class="icon-btn" id="category-btn" onclick="void(0)" title="Filter Categories">
+            <button class="icon-btn" id="category-btn" onclick="App.UI.openModal('modal-categories')" title="Filter Categories">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
                 <span class="badge-dot" id="category-active-badge"></span>
             </button>
             
-            <button class="icon-btn" id="bookmarks-btn" onclick="void(0)" title="Show Bookmarks Only">
+            <button class="icon-btn" id="bookmarks-btn" onclick="App.Actions.toggleBookmarksFilter()" title="Show Bookmarks Only">
                 <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
             </button>
             
@@ -103,16 +103,6 @@
     </div>
 
     <!-- starting of featuristics-->
-
-    <div id="quiz-summary">
-                <h1 style="font-size:3rem; margin-bottom:10px;">🎉</h1>
-                <h2 style="font-size:2rem; font-weight:800; margin-bottom:10px;">Test Complete!</h2>
-                <h3 style="font-size:2.5rem; color:var(--primary); margin-bottom:10px;" id="quiz-final-score">0 / 10</h3>
-                <p style="color:var(--text-muted); margin-bottom:30px;" id="quiz-summary-text">Good effort!</p>
-                <button class="btn-large btn-primary" style="max-width:200px;" onclick="App.Quiz.exit()">Back to Feed</button>
-            </div>
-        </div>
-    </div>
 
     <div id="toast">Notification</div>
 
