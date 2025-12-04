@@ -10,7 +10,6 @@ DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgO
 BASE_URL = "https://civilskash.in"
 
 # 1. HARDCODED DATA 
-# I assigned PERMANENT IDs to these so they never shift.
 HARDCODED_DATA = [
     {"id": "static_001", "title": "Daily Current Affairs Quiz UPSC JKPSC", "summary": "Boost your preparation with high-yield MCQs for UPSC and JKPSC Prelims...", "category": "Current Affairs", "date": "Daily Update", "image": "https://tse3.mm.bing.net/th/id/OIP.WvbBV909fzI7zuLUadLrgQHaE6?rs=1&pid=ImgDetMain&o=7&rm=3"},
     {"id": "static_002", "title": "Schedules of Indian Constitution Mnemonic", "summary": "Memorizing the 12 Schedules...", "category": "Polity", "date": "Cheat Sheet", "image": "https://media.istockphoto.com/id/1007178836/photo/indian-supreme-court.jpg?s=612x612&w=0&k=20&c=sVUxnP1WCkC62og2fjbzgdUMleD3WoeOzbBgNiJ9y_Y="},
@@ -27,6 +26,7 @@ HARDCODED_DATA = [
 ]
 
 def clean_slug(text):
+    if not text: return "note"
     slug = text.lower()
     slug = re.sub(r'[^a-z0-9]+', '-', slug)
     return slug.strip('-')
@@ -35,29 +35,32 @@ def clean_cloze(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
-# --- ROBUST ID GENERATOR ---
+# --- UPDATED ID GENERATOR ---
 def generate_stable_id(item):
     """
-    Generates a unique ID based on the Title content, NOT the loop index.
-    If the Google Sheet provides an 'id', use it.
-    Otherwise, create a hash from the title.
+    Generates a unique SEO-friendly slug.
+    PRIORITY: Title-based slug.
     """
-    if item.get('id'):
-        return str(item.get('id'))
+    # 1. Create a clean slug from the title
+    title_slug = clean_slug(item.get('title', ''))
     
-    # Fallback: Create a hash from the title to ensure consistency
-    # This ensures "Communal Electorate" always gets the same ID, regardless of list position.
+    # 2. Add a tiny hash to ensure uniqueness (collision protection)
+    # This keeps the URL looking like: "governor-general-vs-viceroy-a1b2"
     title_bytes = item.get('title', '').encode('utf-8')
-    title_hash = hashlib.md5(title_bytes).hexdigest()[:6] # Take first 6 chars of hash
-    slug = clean_slug(item.get('title', 'note'))
+    title_hash = hashlib.md5(title_bytes).hexdigest()[:4] 
     
-    return f"art_{title_hash}_{slug}"
+    if not title_slug:
+        return f"note-{title_hash}"
+        
+    return f"{title_slug}-{title_hash}"
 
-# --- THE FIX: ZONE DELETION ---
+# --- UPDATED CLEANER (SAFER) ---
 def strip_bloat(html_content):
     clean_html = html_content
 
-    # 1. THE NUCLEAR OPTION (Zone Deletion)
+    # I DISABLED THE NUCLEAR OPTION
+    # Reason: If your content is between these markers in index.html, it was getting deleted.
+    """
     start_marker = '<div id="modal-categories"'
     end_marker = '<div id="toast"'
     
@@ -67,22 +70,29 @@ def strip_bloat(html_content):
     if start_idx != -1 and end_idx != -1:
         print("✂️  Cutting out the entire Modal Zone...")
         clean_html = clean_html[:start_idx] + clean_html[end_idx:]
-    else:
-        # Fallback
-        ids_to_kill = [
-            "modal-categories", "modal-quiz-menu", "quiz-fullscreen-layer",
-            "modal-share-menu", "modal-notekash-tutorial", "modal-settings",
-            "modal-force-update", "modal-create-card"
-        ]
-        print("⚠️  Zone marker not found. Using Fallback Surgical Removal...")
-        for div_id in ids_to_kill:
-            pattern = rf'<div id="{div_id}".*?(?=<div id=|<script)'
-            clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
+    """
+
+    # SURGICAL REMOVAL (This is safer)
+    ids_to_kill = [
+        "modal-categories", "modal-quiz-menu", "quiz-fullscreen-layer",
+        "modal-share-menu", "modal-notekash-tutorial", "modal-settings",
+        "modal-force-update", "modal-create-card"
+    ]
+    # print("🔪 Performing Surgical Removal of modals...")
+    for div_id in ids_to_kill:
+        # Regex to match <div id="X"> ... </div>
+        # Note: This is a simple regex, might fail on nested divs, but safer than the nuclear option for now
+        pattern = rf'<div id="{div_id}".*?>.*?</div>' 
+        # Actually, standard regex for nested divs is hard. 
+        # Let's stick to the previous pattern which was finding the start tag
+        # and assuming it ends before the next major block.
+        pattern = rf'<div id="{div_id}".*?(?=<div id=|<script)'
+        clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
 
     return clean_html
 
 def generate_site():
-    print("🚀 Starting SEO Generation (STABLE ID MODE)...")
+    print("🚀 Starting SEO Generation (Title-Link Mode)...")
     
     try:
         response = requests.get(f"{DATA_URL}?t=seo_gen")
@@ -92,15 +102,16 @@ def generate_site():
         print(f"❌ Error fetching data: {e}")
         sheet_data = []
 
-    # Combine data
-    # Note: We do NOT need to reverse for ID generation anymore because IDs are stable.
-    # But we reverse for display order (newest first).
     combined_raw = sheet_data + HARDCODED_DATA
     combined_raw.reverse()
     full_data = combined_raw
 
-    with open("index.html", "r", encoding="utf-8") as f:
-        template = f.read()
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            template = f.read()
+    except FileNotFoundError:
+        print("❌ Error: index.html not found!")
+        return
 
     sitemap_urls = []
     
@@ -112,8 +123,6 @@ def generate_site():
     print(f"⚡ Generating {len(full_data)} pages inside /notes/ ...")
 
     for item in full_data:
-        # --- CRITICAL FIX: STABLE IDs ---
-        # We no longer use 'idx' (index) for the folder name.
         unique_id = generate_stable_id(item)
         
         output_dir = f"notes/{unique_id}"
@@ -122,6 +131,9 @@ def generate_site():
 
         page_title = f"{item.get('title')} - CivilsKash"
         clean_summary = clean_cloze(item.get('summary', ''))
+        # Fix for NoneType error if summary is missing
+        if clean_summary is None: clean_summary = ""
+        
         page_desc = clean_summary[:160].replace('"', "'").replace('\n', ' ')
         page_url = f"{BASE_URL}/notes/{unique_id}/"
 
@@ -160,8 +172,13 @@ def generate_site():
             </div>
         </article>
         """
-        new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
         
+        # Inject the card into the feed list
+        if '<div id="feed-list">' in new_html:
+            new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
+        else:
+            print(f"⚠️ Warning: <div id='feed-list'> not found for {unique_id}")
+
         # 3. Path Fixes
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
@@ -176,7 +193,7 @@ def generate_site():
         new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
         new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
 
-        # 5. THE BUTCHER
+        # 5. THE BUTCHER (Now Safe)
         new_html = strip_bloat(new_html)
 
         with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
@@ -198,7 +215,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap_content)
 
-    print("✅ Done! SEO URLs are now PERMANENT & STABLE.")
+    print("✅ Done! Links are now Title-Based and Content should be visible.")
 
 if __name__ == "__main__":
     generate_site()
