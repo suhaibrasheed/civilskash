@@ -9,7 +9,7 @@ DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgO
 BASE_URL = "https://civilskash.in"
 OUTPUT_DIR = "notes"
 
-# 1. HARDCODED DATA (Fully Extracted from your app.js)
+# 1. HARDCODED DATA (Extracted from app.js)
 HARDCODED_DATA = [
     {
         "id": "static_001", 
@@ -116,21 +116,21 @@ def clean_slug(text):
     slug = re.sub(r'[^a-z0-9]+', '-', slug)
     return slug.strip('-')
 
-# --- CLOZE CONVERTER FOR SEO ---
-# Changes {{c1::Text}} into <strong>Text</strong>
+# --- CLOZE CONVERTER ---
+# Turns {{c1::Text}} into <strong>Text</strong>
 def convert_cloze_to_bold(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'<strong>\1</strong>', text)
 
-# --- TAG STRIPPER FOR META DESC ---
-# Removes HTML tags so Google shows clean text in snippets
+# --- META CLEANER ---
+# Removes HTML and Cloze markers for Google Search Snippets
 def strip_tags(text):
     if not text: return ""
-    clean = re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text) # First resolve cloze to text
-    return re.sub('<[^<]+?>', '', clean) # Then remove HTML
+    clean = re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text) 
+    return re.sub('<[^<]+?>', '', clean) 
 
 # --- SAFE SURGICAL CLEANER ---
-# Removes only specific modals, keeping content safe
+# Removes bloat without deleting article content
 def strip_bloat(html_content):
     clean_html = html_content
     ids_to_kill = [
@@ -145,8 +145,7 @@ def strip_bloat(html_content):
 
 # --- STABLE ID GENERATOR ---
 def generate_stable_id(item):
-    # Generates ID based on Title: "History of India" -> "history-of-india-a1b2"
-    # This keeps the URL permanent even if you add new rows in Sheets.
+    # Generates ID from Title. Links stay same even if row number changes.
     title_slug = clean_slug(item.get('title', ''))
     title_bytes = item.get('title', '').encode('utf-8')
     title_hash = hashlib.md5(title_bytes).hexdigest()[:4] 
@@ -156,7 +155,7 @@ def generate_stable_id(item):
 
 # --- MAIN GENERATOR ---
 def generate_site():
-    print("🚀 Starting Smart SEO Generation (Full Sync)...")
+    print("🚀 Starting Smart SEO Generation...")
     
     # 1. Fetch Google Sheet Data
     try:
@@ -167,13 +166,11 @@ def generate_site():
         print(f"❌ Error fetching Google Sheet data: {e}")
         sheet_data = []
 
-    # 2. Combine with Hardcoded Data
+    # 2. Merge Data
     full_data = sheet_data + HARDCODED_DATA
-    # Reverse so newest items are processed/displayed first, 
-    # but ID generation remains stable due to title-based hashing.
     full_data.reverse() 
 
-    # 3. Load HTML Template
+    # 3. Load Template
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             template = f.read()
@@ -199,18 +196,18 @@ def generate_site():
         # --- PREPARE CONTENT ---
         page_title = f"{item.get('title')} - CivilsKash"
         
-        # Format Summary: Convert {{c1::Key}} to <strong>Key</strong>
+        # Summary Processing
         raw_summary = item.get('summary', '') or ""
         display_summary = convert_cloze_to_bold(raw_summary)
-        
-        # Clean Description for Meta Tag (No HTML, No Cloze)
         meta_description = strip_tags(raw_summary)[:160].replace('"', "'").replace('\n', ' ')
         
+        # Image Handling
+        image_url = item.get('image', '').strip()
         img_html = ""
-        if item.get('image') and item.get('image').strip():
-            img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
+        if image_url:
+            img_html = f'<div class="card-img" style="background-image: url(\'{image_url}\')"></div>'
 
-        # Create the Card HTML
+        # Card HTML
         card_html = f"""
         <article class="news-card" style="margin: 0 auto; max-width: 800px;">
             <div class="scroll-content">
@@ -234,11 +231,16 @@ def generate_site():
         new_html = new_html.replace('<link rel="canonical" href="https://civilskash.in/" />', f'<link rel="canonical" href="{page_url}" />')
         new_html = new_html.replace('<meta property="og:url" content="https://civilskash.in">', f'<meta property="og:url" content="{page_url}">')
         
-        # Insert the Card
+        # --- NEW: SOCIAL IMAGE FIX (Updates og:image dynamically) ---
+        if image_url:
+             # Replaces the default logo with the article's image for social sharing
+             new_html = re.sub(r'<meta property="og:image" content=".*?">', f'<meta property="og:image" content="{image_url}">', new_html)
+
+        # Insert Card
         if '<div id="feed-list">' in new_html:
             new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
             
-        # Fix Resource Paths & Remove Bloat
+        # Fix Paths & Clean
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
@@ -247,17 +249,16 @@ def generate_site():
         new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
         new_html = strip_bloat(new_html)
 
-        # --- THE SMART CHECK (Hash Comparison) ---
+        # --- SMART UPDATE CHECK ---
         should_write = True
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
                 existing_content = f.read()
-            # If generated content is identical to file on disk, SKIP.
+            # If files are identical, skip write
             if existing_content == new_html:
                 should_write = False
                 skipped_count += 1
         
-        # Write File
         if should_write:
             if not os.path.exists(folder_path): os.makedirs(folder_path)
             with open(file_path, "w", encoding="utf-8") as f:
