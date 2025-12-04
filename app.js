@@ -25,6 +25,10 @@
             Lite: {
                 init() {
                     console.log("🚀 Lite Mode Active: SEO Optimized");
+            
+                    const feed = document.getElementById('feed-list');
+                    if(feed) feed.classList.add('layout-paper');
+
                     this.setupToast();
                     this.bindRedirects();
                     
@@ -58,18 +62,13 @@
                 },
 
                 redirectWithMessage() {
-                    // Show Toast
                     const t = document.getElementById('toast');
                     if(t) {
                         t.innerText = "✨ Launching Full App...";
                         t.classList.add('show');
                     }
-                    
-                    // Visual Feedback
                     document.body.style.transition = "opacity 0.5s";
                     document.body.style.opacity = '0.6';
-                    
-                    // Redirect after brief delay
                     setTimeout(() => {
                         window.location.href = 'https://civilskash.in';
                     }, 800);
@@ -153,7 +152,7 @@
                 bookmarks: new Set(), 
                 filterBookmarks: false,
                 activeCategory: 'all',
-                desktopLayout: 'grid',
+                desktopLayout: 'paper',
                 searchTerm: '',
                 srsData: {}, 
                 isDark: true, 
@@ -1758,6 +1757,7 @@
                         this.Lite.init();  
                         return;            
                     }
+
                     // 1. SYSTEM BOOT
                     await this.DB.init();
                     this.PTR.init();
@@ -1766,9 +1766,13 @@
                     let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
                     await App.Actions.setTheme(savedTheme); 
                     
-                    let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'grid';
+                    // FIX: Changed default fallback from 'grid' to 'paper'
+                    let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'paper';
                     App.State.desktopLayout = savedLayout;
+                    
+                    // FIX: Immediately apply the class if mode is paper
                     if(savedLayout === 'paper') document.getElementById('feed-list').classList.add('layout-paper');
+                    
                     const layoutSelect = document.getElementById('layout-select');
                     if(layoutSelect) layoutSelect.value = savedLayout;
 
@@ -1792,16 +1796,14 @@
 
                         // --- SMART MATCHING LOGIC ---
                         const findMatch = (idFromUrl) => {
-                            // Strip "art_123_" prefix to get pure slug
                             const targetSlug = idFromUrl.replace(/^art_\d+_/, ''); 
-                            
                             return App.State.feed.find(item => {
                                 // A. Exact Match
                                 if (item.id === idFromUrl) return true;
-                                // B. Slug Match (Ignores index difference between Python/JS)
+                                // B. Slug Match 
                                 const itemSlug = item.id.replace(/^art_\d+_/, '');
                                 if (itemSlug === targetSlug) return true;
-                                // C. Safety Match (Handles slight variations)
+                                // C. Safety Match
                                 if (targetSlug.length > 8 && itemSlug.length > 8) {
                                     return targetSlug.includes(itemSlug) || itemSlug.includes(targetSlug);
                                 }
@@ -1818,7 +1820,7 @@
                             App.UI.renderFeed();
                             this.hideLoader();
                         } else {
-                            // Attempt 2: Network Sync (WAIT for it)
+                            // Attempt 2: Network Sync
                             console.log("⚠️ Deep Link not in cache. Syncing...");
                             const loaderText = document.querySelector('#startup-loader div:nth-child(3)');
                             if(loaderText) loaderText.innerText = "Searching Archives...";
@@ -1826,7 +1828,8 @@
                             const freshData = await App.Data.syncNetwork();
                             
                             if (freshData) {
-                                App.State.feed = await App.Data.loadLocal(); // Reload state
+                                // FIX: Use mergeStrategy to prevent Race Condition
+                                App.State.feed = App.Data.mergeStrategy(freshData); 
                                 foundItem = findMatch(targetId); // Retry match
                                 
                                 if(foundItem) {
@@ -1839,7 +1842,7 @@
                                     if (container && container.querySelector('.news-card')) {
                                         console.log("Data missing, but Static HTML found. Preserving for SEO.");
                                         this.hideLoader(); 
-                                        return; // STOP! Do not redirect.
+                                        return; 
                                     }
                                     
                                     App.UI.toast("Note not found.");
@@ -1847,12 +1850,11 @@
                                 }
                             } else {
                                 // --- STATIC GUARD (NETWORK FAIL FIX) ---
-                                // If Network fails (Googlebot blocks it), check for Static Card.
                                 const container = document.getElementById('feed-list');
                                 if (container && container.querySelector('.news-card')) {
                                     console.log("Network failed, preserving Static HTML for Bot/Offline.");
                                     this.hideLoader();
-                                    return; // STOP! Do not redirect.
+                                    return; 
                                 }
 
                                 App.UI.toast("Note not available offline.");
@@ -1869,7 +1871,8 @@
                         setTimeout(async () => {
                             const fresh = await App.Data.syncNetwork();
                             if(fresh) {
-                                App.State.feed = await App.Data.loadLocal();
+                                // FIX: Use mergeStrategy to prevent Race Condition
+                                App.State.feed = App.Data.mergeStrategy(fresh);
                                 App.UI.renderFeed();
                                 App.UI.toast("Feed Updated ⚡");
                             }
