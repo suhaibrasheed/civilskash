@@ -1,5 +1,4 @@
 import os
-import json
 import requests
 import re
 import shutil
@@ -8,8 +7,9 @@ import hashlib
 # --- CONFIGURATION ---
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
+OUTPUT_DIR = "notes"
 
-# 1. HARDCODED DATA 
+# 1. HARDCODED DATA (Your Static Files)
 HARDCODED_DATA = [
     {"id": "static_001", "title": "Daily Current Affairs Quiz UPSC JKPSC", "summary": "Boost your preparation with high-yield MCQs for UPSC and JKPSC Prelims...", "category": "Current Affairs", "date": "Daily Update", "image": "https://tse3.mm.bing.net/th/id/OIP.WvbBV909fzI7zuLUadLrgQHaE6?rs=1&pid=ImgDetMain&o=7&rm=3"},
     {"id": "static_002", "title": "Schedules of Indian Constitution Mnemonic", "summary": "Memorizing the 12 Schedules...", "category": "Polity", "date": "Cheat Sheet", "image": "https://media.istockphoto.com/id/1007178836/photo/indian-supreme-court.jpg?s=612x612&w=0&k=20&c=sVUxnP1WCkC62og2fjbzgdUMleD3WoeOzbBgNiJ9y_Y="},
@@ -25,6 +25,7 @@ HARDCODED_DATA = [
     {"id": "static_012", "title": "Shortest Koppen’s Climatic Classification for Exam", "summary": "Koppen’s Climatic Classification links climate...", "category": "Geography", "date": "Climatology", "image": "https://www.pngitem.com/pimgs/m/505-5057181_india-map-of-kppen-climate-classification-koppen-climate.png"}
 ]
 
+# --- UTILS ---
 def clean_slug(text):
     if not text: return "note"
     slug = text.lower()
@@ -35,128 +36,80 @@ def clean_cloze(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text)
 
-# --- UPDATED ID GENERATOR ---
-def generate_stable_id(item):
-    """
-    Generates a unique SEO-friendly slug.
-    PRIORITY: Title-based slug.
-    """
-    # 1. Create a clean slug from the title
-    title_slug = clean_slug(item.get('title', ''))
-    
-    # 2. Add a tiny hash to ensure uniqueness (collision protection)
-    # This keeps the URL looking like: "governor-general-vs-viceroy-a1b2"
-    title_bytes = item.get('title', '').encode('utf-8')
-    title_hash = hashlib.md5(title_bytes).hexdigest()[:4] 
-    
-    if not title_slug:
-        return f"note-{title_hash}"
-        
-    return f"{title_slug}-{title_hash}"
-
-# --- UPDATED CLEANER (SAFER) ---
 def strip_bloat(html_content):
     clean_html = html_content
-
-    # I DISABLED THE NUCLEAR OPTION
-    # Reason: If your content is between these markers in index.html, it was getting deleted.
-    """
-    start_marker = '<div id="modal-categories"'
-    end_marker = '<div id="toast"'
-    
-    start_idx = clean_html.find(start_marker)
-    end_idx = clean_html.find(end_marker)
-    
-    if start_idx != -1 and end_idx != -1:
-        print("✂️  Cutting out the entire Modal Zone...")
-        clean_html = clean_html[:start_idx] + clean_html[end_idx:]
-    """
-
-    # SURGICAL REMOVAL (This is safer)
+    # Known modals to remove surgically (Safe)
     ids_to_kill = [
         "modal-categories", "modal-quiz-menu", "quiz-fullscreen-layer",
         "modal-share-menu", "modal-notekash-tutorial", "modal-settings",
-        "modal-force-update", "modal-create-card"
+        "modal-force-update", "modal-create-card" , "quiz-summary"
     ]
-    # print("🔪 Performing Surgical Removal of modals...")
     for div_id in ids_to_kill:
-        # Regex to match <div id="X"> ... </div>
-        # Note: This is a simple regex, might fail on nested divs, but safer than the nuclear option for now
-        pattern = rf'<div id="{div_id}".*?>.*?</div>' 
-        # Actually, standard regex for nested divs is hard. 
-        # Let's stick to the previous pattern which was finding the start tag
-        # and assuming it ends before the next major block.
         pattern = rf'<div id="{div_id}".*?(?=<div id=|<script)'
         clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
-
     return clean_html
 
-def generate_site():
-    print("🚀 Starting SEO Generation (Title-Link Mode)...")
+# --- 1. STABLE ID GENERATOR (Based on TITLE Only) ---
+def generate_stable_id(item):
+    # This creates a URL like: notes/governor-general-vs-viceroy-a1b2
+    # Even if you add new rows, this ID stays the same because the TITLE didn't change.
+    title_slug = clean_slug(item.get('title', ''))
+    title_bytes = item.get('title', '').encode('utf-8')
+    title_hash = hashlib.md5(title_bytes).hexdigest()[:4] # Tiny hash for uniqueness
     
+    if not title_slug: return f"note-{title_hash}"
+    return f"{title_slug}-{title_hash}"
+
+# --- MAIN GENERATOR ---
+def generate_site():
+    print("🚀 Starting Smart SEO Generation...")
+    
+    # 1. Fetch Data
     try:
         response = requests.get(f"{DATA_URL}?t=seo_gen")
         sheet_data = response.json()
-        print(f"✅ Fetched {len(sheet_data)} articles from Google Sheets.")
+        print(f"✅ Fetched {len(sheet_data)} articles from Sheets.")
     except Exception as e:
         print(f"❌ Error fetching data: {e}")
         sheet_data = []
 
-    combined_raw = sheet_data + HARDCODED_DATA
-    combined_raw.reverse()
-    full_data = combined_raw
+    full_data = sheet_data + HARDCODED_DATA
+    full_data.reverse() # Newest on top
 
+    # 2. Load Template
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             template = f.read()
     except FileNotFoundError:
-        print("❌ Error: index.html not found!")
+        print("❌ Error: index.html not found! Make sure it is in the same folder.")
         return
 
-    sitemap_urls = []
-    
-    print("🧹 Cleaning old folders...")
-    if os.path.exists("notes"):
-        shutil.rmtree("notes")
-    os.makedirs("notes")
+    # 3. Create Output Folder (Don't delete old files yet!)
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
 
-    print(f"⚡ Generating {len(full_data)} pages inside /notes/ ...")
+    sitemap_urls = []
+    updated_count = 0
+    skipped_count = 0
+
+    print(f"⚡ Processing {len(full_data)} articles...")
 
     for item in full_data:
         unique_id = generate_stable_id(item)
-        
-        output_dir = f"notes/{unique_id}"
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        page_title = f"{item.get('title')} - CivilsKash"
-        clean_summary = clean_cloze(item.get('summary', ''))
-        # Fix for NoneType error if summary is missing
-        if clean_summary is None: clean_summary = ""
-        
-        page_desc = clean_summary[:160].replace('"', "'").replace('\n', ' ')
+        folder_path = f"{OUTPUT_DIR}/{unique_id}"
+        file_path = f"{folder_path}/index.html"
         page_url = f"{BASE_URL}/notes/{unique_id}/"
-
-        # --- HTML INJECTION ---
-        new_html = template
         
-        # 1. SEO Metas
-        new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
-        new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
-        new_html = new_html.replace(
-            '<link rel="canonical" href="https://civilskash.in/" />', 
-            f'<link rel="canonical" href="{page_url}" />'
-        )
-        new_html = new_html.replace(
-            '<meta property="og:url" content="https://civilskash.in">', 
-            f'<meta property="og:url" content="{page_url}">'
-        )
-
-        # 2. Inject Content
+        # --- PREPARE NEW CONTENT ---
+        # We build the HTML in memory first
+        page_title = f"{item.get('title')} - CivilsKash"
+        clean_summary = clean_cloze(item.get('summary', '')) or ""
+        page_desc = clean_summary[:160].replace('"', "'").replace('\n', ' ')
+        
         img_html = ""
         if item.get('image'):
             img_html = f'<div class="card-img" style="background-image: url(\'{item.get("image")}\')"></div>'
-            
+
         card_html = f"""
         <article class="news-card" style="margin: 0 auto; max-width: 800px;">
             <div class="scroll-content">
@@ -172,50 +125,61 @@ def generate_site():
             </div>
         </article>
         """
+
+        # Inject into Template
+        new_html = template
+        new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
+        new_html = re.sub(r'content="Free UPSC.*?"', f'content="{page_desc}"', new_html)
+        new_html = new_html.replace('<link rel="canonical" href="https://civilskash.in/" />', f'<link rel="canonical" href="{page_url}" />')
+        new_html = new_html.replace('<meta property="og:url" content="https://civilskash.in">', f'<meta property="og:url" content="{page_url}">')
         
-        # Inject the card into the feed list
         if '<div id="feed-list">' in new_html:
             new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
-        else:
-            print(f"⚠️ Warning: <div id='feed-list'> not found for {unique_id}")
-
-        # 3. Path Fixes
+            
+        # Fix paths & remove bloat
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
         new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
         new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
         new_html = new_html.replace('href="/favicon', 'href="../../favicon')
-
-        # 4. HEADER NEUTRALIZATION
         new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
         new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
-        new_html = new_html.replace("App.UI.openModal('modal-categories')", "void(0)")
-        new_html = new_html.replace("App.Actions.toggleBookmarksFilter()", "void(0)")
-        new_html = new_html.replace("App.Actions.triggerSync()", "void(0)")
-        new_html = new_html.replace('onclick="App.Actions.goHome()"', 'onclick="window.location.href=\'https://civilskash.in\'"')
-
-        # 5. THE BUTCHER (Now Safe)
         new_html = strip_bloat(new_html)
 
-        with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
-            f.write(new_html)
-            
+        # --- THE SMART CHECK ---
+        # If file exists, check if content is identical. 
+        # If Title/Date/Summary matches -> Content matches -> SKIP.
+        should_write = True
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                existing_content = f.read()
+            if existing_content == new_html:
+                should_write = False
+                skipped_count += 1
+        
+        # Write only if needed
+        if should_write:
+            if not os.path.exists(folder_path): os.makedirs(folder_path)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(new_html)
+            updated_count += 1
+            print(f"💾 Updated: {unique_id}")
+
         sitemap_urls.append(page_url)
 
-    # Sitemap Gen
+    # 4. Sitemap (Always update to capture new links)
     print("🗺️  Updating sitemap.xml...")
-    sitemap_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    sitemap_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    sitemap_content += f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n'
-    
+    sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    sitemap += f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n'
     for url in sitemap_urls:
-        sitemap_content += f'  <url><loc>{url}</loc><changefreq>weekly</changefreq></url>\n'
-        
-    sitemap_content += '</urlset>'
+        sitemap += f'  <url><loc>{url}</loc><changefreq>weekly</changefreq></url>\n'
+    sitemap += '</urlset>'
     
     with open("sitemap.xml", "w", encoding="utf-8") as f:
-        f.write(sitemap_content)
+        f.write(sitemap)
 
-    print("✅ Done! Links are now Title-Based and Content should be visible.")
+    print(f"\n✅ Job Done!")
+    print(f"   - Files Updated: {updated_count}")
+    print(f"   - Files Skipped (Unchanged): {skipped_count}")
 
 if __name__ == "__main__":
     generate_site()
