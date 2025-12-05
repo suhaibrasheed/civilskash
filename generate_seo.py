@@ -1,15 +1,16 @@
 import os
 import requests
 import re
-import shutil
 import hashlib
+import json
+import random
 
 # --- CONFIGURATION ---
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
 OUTPUT_DIR = "notes"
 
-# 1. HARDCODED DATA (Extracted from app.js)
+# 1. HARDCODED DATA (Keep your existing data here)
 HARDCODED_DATA = [
     {
         "id": "static_001", 
@@ -116,66 +117,42 @@ def clean_slug(text):
     slug = re.sub(r'[^a-z0-9]+', '-', slug)
     return slug.strip('-')
 
-# --- CLOZE CONVERTER ---
-# Turns {{c1::Text}} into <strong>Text</strong>
 def convert_cloze_to_bold(text):
     if not text: return ""
     return re.sub(r'\{\{c\d+::(.*?)\}\}', r'<strong>\1</strong>', text)
 
-# --- META CLEANER ---
-# Removes HTML and Cloze markers for Google Search Snippets
 def strip_tags(text):
     if not text: return ""
     clean = re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', text) 
     return re.sub('<[^<]+?>', '', clean) 
 
-# --- SAFE SURGICAL CLEANER ---
-# Removes bloat without deleting article content
-def strip_bloat(html_content):
-    clean_html = html_content
-    ids_to_kill = [
-        "modal-categories", "modal-quiz-menu", "quiz-fullscreen-layer",
-        "modal-share-menu", "modal-notekash-tutorial", "modal-settings",
-        "modal-force-update", "modal-create-card", "quiz-summary"
-    ]
-    for div_id in ids_to_kill:
-        pattern = rf'<div id="{div_id}".*?(?=<div id=|<script)'
-        clean_html = re.sub(pattern, '', clean_html, flags=re.DOTALL)
-    return clean_html
-
-# --- STABLE ID GENERATOR ---
 def generate_stable_id(item):
-    # Generates ID from Title. Links stay same even if row number changes.
     title_slug = clean_slug(item.get('title', ''))
     title_bytes = item.get('title', '').encode('utf-8')
     title_hash = hashlib.md5(title_bytes).hexdigest()[:4] 
-    
     if not title_slug: return f"note-{title_hash}"
     return f"{title_slug}-{title_hash}"
 
 # --- MAIN GENERATOR ---
 def generate_site():
-    print("🚀 Starting Smart SEO Generation...")
+    print("🚀 Starting Advanced SEO Generation...")
     
-    # 1. Fetch Google Sheet Data
+    # 1. Fetch Data
     try:
         response = requests.get(f"{DATA_URL}?t=seo_gen")
         sheet_data = response.json()
-        print(f"✅ Fetched {len(sheet_data)} articles from Google Sheets.")
-    except Exception as e:
-        print(f"❌ Error fetching Google Sheet data: {e}")
+        print(f"✅ Fetched {len(sheet_data)} articles from Sheet.")
+    except:
         sheet_data = []
 
-    # 2. Merge Data
     full_data = sheet_data + HARDCODED_DATA
-    full_data.reverse() 
-
-    # 3. Load Template
+    
+    # 2. Load Template
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             template = f.read()
     except FileNotFoundError:
-        print("❌ Error: index.html not found!")
+        print("❌ index.html missing")
         return
 
     if not os.path.exists(OUTPUT_DIR):
@@ -183,7 +160,27 @@ def generate_site():
 
     sitemap_urls = []
     updated_count = 0
-    skipped_count = 0
+
+    # --- THE "LITE" SCRIPT (Injects directly into HTML) ---
+    # This replaces app.js. It handles the "Open App" redirect only.
+    lite_script = """
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const goFull = (e) => {
+            e.preventDefault();
+            const t = document.createElement('div');
+            t.innerText = "Launching App... 🚀";
+            t.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 20px; border-radius:20px; z-index:9999;';
+            document.body.appendChild(t);
+            document.body.style.opacity = '0.5';
+            setTimeout(() => window.location.href = 'https://civilskash.in', 500);
+        };
+        document.querySelectorAll('header .brand, header .icon-btn').forEach(btn => {
+            btn.addEventListener('click', goFull);
+        });
+    });
+    </script>
+    """
 
     print(f"⚡ Processing {len(full_data)} articles...")
 
@@ -193,82 +190,114 @@ def generate_site():
         file_path = f"{folder_path}/index.html"
         page_url = f"{BASE_URL}/notes/{unique_id}/"
         
-        # --- PREPARE CONTENT ---
-        page_title = f"{item.get('title')} - CivilsKash"
-        
-        # Summary Processing
-        raw_summary = item.get('summary', '') or ""
-        display_summary = convert_cloze_to_bold(raw_summary)
-        meta_description = strip_tags(raw_summary)[:160].replace('"', "'").replace('\n', ' ')
-        
-        # Image Handling
+        display_summary = convert_cloze_to_bold(item.get('summary', ''))
+        clean_desc = strip_tags(item.get('summary', ''))[:155].replace('"', "'").strip()
         image_url = item.get('image', '').strip()
-        img_html = ""
-        if image_url:
-            img_html = f'<div class="card-img" style="background-image: url(\'{image_url}\')"></div>'
+        
+        # --- A. JSON-LD SCHEMA (The "Identity Card" for Google) ---
+        schema_data = {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": item.get('title'),
+            "image": [image_url] if image_url else [f"{BASE_URL}/icon-512.png"],
+            "datePublished": "2025-11-01T08:00:00+08:00", 
+            "author": {"@type": "Organization", "name": "CivilsKash"},
+            "publisher": {
+                "@type": "Organization",
+                "name": "CivilsKash",
+                "logo": {"@type": "ImageObject", "url": f"{BASE_URL}/icon-192.png"}
+            },
+            "description": clean_desc,
+            "mainEntityOfPage": {"@type": "WebPage", "@id": page_url}
+        }
+        schema_script = f'<script type="application/ld+json">{json.dumps(schema_data)}</script>'
 
-        # Card HTML
-        card_html = f"""
-        <article class="news-card" style="margin: 0 auto; max-width: 800px;">
-            <div class="scroll-content">
+        # --- B. RELATED NOTES (The "Uniqueness" Booster) ---
+        # Pick 3 random articles that are NOT this one
+        others = [x for x in full_data if x != item]
+        related_items = random.sample(others, min(3, len(others))) if others else []
+        
+        related_html = '<div class="related-section" style="max-width:800px; margin:40px auto; padding:0 20px;">'
+        related_html += '<h3 style="color:var(--text-muted); border-bottom:1px solid var(--border-glass); padding-bottom:10px;">Read Also</h3>'
+        related_html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-top:20px;">'
+        
+        for rel in related_items:
+            rel_id = generate_stable_id(rel)
+            rel_link = f"../../notes/{rel_id}/"
+            rel_title = rel.get('title', 'Note')
+            related_html += f"""
+            <a href="{rel_link}" style="text-decoration:none; color:inherit;">
+                <div class="news-card" style="height:100%; min-height:100px; padding:15px; border:1px solid var(--border-glass);">
+                    <span class="badge" style="font-size:0.7rem;">{rel.get('category','GK')}</span>
+                    <h4 style="margin-top:10px; font-size:0.9rem;">{rel_title}</h4>
+                </div>
+            </a>
+            """
+        related_html += '</div></div>'
+
+        # --- C. MAIN CONTENT CONSTRUCTION ---
+        img_html = f'<div class="card-img" style="background-image: url(\'{image_url}\')"></div>' if image_url else ""
+        
+        main_content = f"""
+        <article class="news-card" style="margin: 80px auto 20px; max-width: 800px;">
+            <div class="scroll-content" style="height:auto;">
                 {img_html}
                 <div class="card-body">
                     <div class="meta-row">
                         <span class="badge">{item.get('category', 'General')}</span>
-                        <span class="date">{item.get('date', '')}</span>
+                        <span class="date">{item.get('date', 'Daily Update')}</span>
                     </div>
-                    <h2>{item.get('title', '')}</h2>
-                    <p class="summary-box">{display_summary}</p>
+                    <h1 style="font-size:1.5rem; margin:10px 0;">{item.get('title', '')}</h1>
+                    <p class="summary-box" style="font-size:1.1rem; line-height:1.8;">{display_summary}</p>
                 </div>
             </div>
         </article>
+        {related_html}
         """
 
-        # Inject into Template
+        # --- D. INJECT INTO TEMPLATE (The "Surgery") ---
         new_html = template
-        new_html = re.sub(r'<title>.*?</title>', f'<title>{page_title}</title>', new_html)
-        new_html = re.sub(r'content="Free UPSC.*?"', f'content="{meta_description}"', new_html)
+        
+        # 1. Meta & Canonicals (Using Absolute Paths)
+        new_html = re.sub(r'<title>.*?</title>', f'<title>{item.get("title")} - CivilsKash</title>', new_html)
+        new_html = re.sub(r'content="Free UPSC.*?"', f'content="{clean_desc}"', new_html)
         new_html = new_html.replace('<link rel="canonical" href="https://civilskash.in/" />', f'<link rel="canonical" href="{page_url}" />')
         new_html = new_html.replace('<meta property="og:url" content="https://civilskash.in">', f'<meta property="og:url" content="{page_url}">')
-        
-        # --- NEW: SOCIAL IMAGE FIX (Updates og:image dynamically) ---
         if image_url:
-             # Replaces the default logo with the article's image for social sharing
-             new_html = re.sub(r'<meta property="og:image" content=".*?">', f'<meta property="og:image" content="{image_url}">', new_html)
+            new_html = re.sub(r'<meta property="og:image" content=".*?">', f'<meta property="og:image" content="{image_url}">', new_html)
 
-        # Insert Card
-        if '<div id="feed-list">' in new_html:
-            new_html = new_html.replace('<div id="feed-list"></div>', f'<div id="feed-list">{card_html}</div>')
-            
-        # Fix Paths & Clean
+        # 2. Fix Icons (Force Absolute)
+        new_html = new_html.replace('href="/favicon.ico"', f'href="{BASE_URL}/favicon.ico"')
+        new_html = new_html.replace('href="/icon-512.png"', f'href="{BASE_URL}/icon-512.png"')
+        new_html = new_html.replace('href="/icon-192.png"', f'href="{BASE_URL}/icon-192.png"')
+        new_html = new_html.replace('href="manifest.json"', f'href="{BASE_URL}/manifest.json"')
         new_html = new_html.replace('href="style.css"', 'href="../../style.css"')
-        new_html = new_html.replace('src="app.js"', 'src="../../app.js"')
-        new_html = new_html.replace('href="manifest.json"', 'href="../../manifest.json"')
-        new_html = new_html.replace('href="/favicon', 'href="../../favicon')
-        new_html = new_html.replace("App.UI.openModal('modal-settings')", "void(0)")
-        new_html = new_html.replace("App.UI.openModal('modal-quiz-menu')", "void(0)")
-        new_html = strip_bloat(new_html)
 
-        # --- SMART UPDATE CHECK ---
-        should_write = True
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8") as f:
-                existing_content = f.read()
-            # If files are identical, skip write
-            if existing_content == new_html:
-                should_write = False
-                skipped_count += 1
+        # 3. KILL APP.JS & INJECT LITE SCRIPT (Critical SEO Fix)
+        # This removes the "duplicate" app logic and replaces it with the tiny script
+        new_html = re.sub(r'<script src="app.js".*?></script>', lite_script, new_html)
         
-        if should_write:
-            if not os.path.exists(folder_path): os.makedirs(folder_path)
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(new_html)
-            updated_count += 1
-            print(f"💾 Updated: {unique_id}")
+        # 4. Remove Loader & Modals (Reduce Bloat)
+        new_html = re.sub(r'<div id="startup-loader">.*?</div>', '', new_html, flags=re.DOTALL)
+        new_html = re.sub(r'<div id="modal-.*?" class="modal-backdrop">.*?</div>', '', new_html, flags=re.DOTALL)
 
+        # 5. Inject Main Content
+        if '<div id="feed-list">' in new_html:
+            new_html = re.sub(r'<div id="ptr-zone">.*?</div>', '', new_html, flags=re.DOTALL) # Remove pull-to-refresh
+            new_html = new_html.replace('<div id="feed-list"></div>', main_content)
+        
+        # 6. Inject Schema
+        new_html = new_html.replace('</head>', f'{schema_script}\n</head>')
+
+        # Write File
+        if not os.path.exists(folder_path): os.makedirs(folder_path)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(new_html)
+        
+        updated_count += 1
         sitemap_urls.append(page_url)
 
-    # 4. Generate Sitemap
+    # Sitemap
     print("🗺️  Updating sitemap.xml...")
     sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     sitemap += f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n'
@@ -279,9 +308,7 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap)
 
-    print(f"\n✅ Job Done!")
-    print(f"   - Files Updated: {updated_count}")
-    print(f"   - Files Skipped (Unchanged): {skipped_count}")
+    print(f"✅ Generated {updated_count} Optimized Pages.")
 
 if __name__ == "__main__":
     generate_site()
