@@ -11,7 +11,7 @@ DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgO
 BASE_URL = "https://civilskash.in"
 OUTPUT_DIR = "notes"
 
-# 1. HARDCODED DATA (Backup)
+# 1. HARDCODED DATA (Verified Complete from app.js)
 HARDCODED_DATA = [
     {
         "id": "static_001", 
@@ -111,7 +111,7 @@ HARDCODED_DATA = [
     }
 ]
 
-# --- PREMIUM HTML TEMPLATE ---
+# --- PREMIUM HTML TEMPLATE (With Social Image & Schema) ---
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -204,15 +204,35 @@ def strip_tags(text):
     return re.sub('<[^<]+?>', '', clean) 
 
 def generate_stable_id(item):
+    # Generates ID from Title (Stable)
     title_slug = clean_slug(item.get('title', ''))
-    seed = item.get('date', item.get('title', '')) 
+    seed = item.get('title', '')
     hash_suffix = hashlib.md5(seed.encode('utf-8')).hexdigest()[:5]
     if not title_slug: return f"note-{hash_suffix}"
     return f"{title_slug}-{hash_suffix}"
 
+# --- SMART DATE CHECKER ---
+def get_existing_date(file_path):
+    """
+    Opens existing HTML file and reads the date.
+    Used to compare against Sheet date.
+    """
+    if not os.path.exists(file_path):
+        return None
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Looks for: <span class="date">1 Nov 25</span>
+            match = re.search(r'<span class="date">(.*?)</span>', content)
+            if match:
+                return match.group(1).strip()
+    except Exception as e:
+        return None
+    return None
+
 # --- MAIN LOGIC ---
 def generate_site():
-    print("🚀 Starting Premium SEO Generation...")
+    print("🚀 Starting Smart SEO Generation (Date-Lock Mode)...")
 
     try:
         response = requests.get(f"{DATA_URL}?t=seo_lite", timeout=10)
@@ -228,6 +248,7 @@ def generate_site():
         os.makedirs(OUTPUT_DIR)
 
     updated_count = 0
+    skipped_count = 0
     sitemap_urls = []
 
     print(f"⚡ Processing {len(full_data)} items...")
@@ -238,17 +259,28 @@ def generate_site():
         file_path = f"{folder_path}/index.html"
         page_url = f"{BASE_URL}/notes/{unique_id}/"
         
+        # 1. PREPARE METADATA
         title = item.get('title', 'Untitled Note')
+        new_date_str = item.get('date', datetime.now().strftime("%d %b %Y")).strip()
+        
+        # 2. THE SMART CHECK (Logic: If File Exists AND Dates Match -> SKIP)
+        existing_date = get_existing_date(file_path)
+        
+        if existing_date and existing_date == new_date_str:
+            # The file is up to date. Do not touch it.
+            skipped_count += 1
+            sitemap_urls.append(page_url) # Still add to sitemap!
+            continue
+
+        # 3. GENERATE NEW CONTENT (Only runs if Date is different or File is new)
         raw_summary = item.get('summary', '')
         desc_clean = strip_tags(raw_summary)[:160].replace('"', "'").strip()
-        
         body_html = convert_cloze_to_highlights(raw_summary)
         
         image_url = item.get('image', '').strip()
         og_image = image_url if image_url else f"{BASE_URL}/icon-512.png"
         
-        date_str = item.get('date', datetime.now().strftime("%d %b %Y"))
-
+        # Schema for SEO
         schema_data = {
             "@context": "https://schema.org",
             "@type": "Article",
@@ -265,6 +297,7 @@ def generate_site():
             "mainEntityOfPage": {"@type": "WebPage", "@id": page_url}
         }
 
+        # Related Articles
         others = [x for x in full_data if x != item and x.get('title')]
         related = random.sample(others, min(3, len(others))) if others else []
         related_str = ""
@@ -291,25 +324,22 @@ def generate_site():
             og_image=og_image,
             schema_json=json.dumps(schema_data),
             category=item.get('category', 'General'),
-            date=date_str,
+            date=new_date_str,
             content_html=body_html,
             related_html=related_str
         )
 
-        should_write = True
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8") as f:
-                if f.read() == final_html:
-                    should_write = False
+        # Write File
+        if not os.path.exists(folder_path): os.makedirs(folder_path)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(final_html)
         
-        if should_write:
-            if not os.path.exists(folder_path): os.makedirs(folder_path)
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(final_html)
-            updated_count += 1
+        updated_count += 1
+        print(f"💾 Updated: {unique_id}")
         
         sitemap_urls.append(page_url)
 
+    # 4. SITEMAP GENERATION
     print("🗺️  Updating sitemap.xml...")
     sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     sitemap += f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n'
@@ -320,7 +350,9 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap)
 
-    print(f"✅ Finished. Generated/Updated {updated_count} premium pages.")
+    print(f"✅ Finished.")
+    print(f"   - Files Updated: {updated_count}")
+    print(f"   - Files Skipped (Unchanged): {skipped_count}")
 
 if __name__ == "__main__":
     generate_site()
