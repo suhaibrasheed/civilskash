@@ -211,6 +211,23 @@ def generate_stable_id(item):
     if not title_slug: return f"note-{hash_suffix}"
     return f"{title_slug}-{hash_suffix}"
 
+def parse_date_for_seo(date_str):
+    """
+    Converts display date (1 Nov 25) to ISO format (2025-11-01) for Google.
+    Falls back to today if format fails.
+    """
+    if not date_str:
+        return datetime.now().strftime("%Y-%m-%d")
+    try:
+        # Attempts to parse '1 Nov 25' or '01 Nov 2025'
+        return datetime.strptime(date_str, "%d %b %y").strftime("%Y-%m-%d")
+    except ValueError:
+        try:
+             # Backup: try full year format
+             return datetime.strptime(date_str, "%d %b %Y").strftime("%Y-%m-%d")
+        except:
+             return datetime.now().strftime("%Y-%m-%d")
+
 # --- SMART DATE CHECKER ---
 def get_existing_date(file_path):
     """
@@ -249,7 +266,7 @@ def generate_site():
 
     updated_count = 0
     skipped_count = 0
-    sitemap_urls = []
+    sitemap_entries = [] # Stores tuple (url, iso_date)
 
     print(f"⚡ Processing {len(full_data)} items...")
 
@@ -262,6 +279,7 @@ def generate_site():
         # 1. PREPARE METADATA
         title = item.get('title', 'Untitled Note')
         new_date_str = item.get('date', datetime.now().strftime("%d %b %Y")).strip()
+        iso_date_seo = parse_date_for_seo(new_date_str) # Get Machine Readable Date
         
         # 2. THE SMART CHECK (Logic: If File Exists AND Dates Match -> SKIP)
         existing_date = get_existing_date(file_path)
@@ -269,7 +287,8 @@ def generate_site():
         if existing_date and existing_date == new_date_str:
             # The file is up to date. Do not touch it.
             skipped_count += 1
-            sitemap_urls.append(page_url) # Still add to sitemap!
+            # IMPORTANT: Even if skipped, we add to sitemap with correct date
+            sitemap_entries.append((page_url, iso_date_seo)) 
             continue
 
         # 3. GENERATE NEW CONTENT (Only runs if Date is different or File is new)
@@ -280,13 +299,14 @@ def generate_site():
         image_url = item.get('image', '').strip()
         og_image = image_url if image_url else f"{BASE_URL}/icon-512.png"
         
-        # Schema for SEO
+        # Schema for SEO (Updated to use ISO Date)
         schema_data = {
             "@context": "https://schema.org",
             "@type": "Article",
             "headline": title,
             "image": [og_image],
-            "datePublished": "2025-11-01", 
+            "datePublished": iso_date_seo, 
+            "dateModified": iso_date_seo, # Crucial for Google
             "author": {"@type": "Organization", "name": "CivilsKash"},
             "publisher": {
                 "@type": "Organization",
@@ -337,18 +357,38 @@ def generate_site():
         updated_count += 1
         print(f"💾 Updated: {unique_id}")
         
-        sitemap_urls.append(page_url)
+        sitemap_entries.append((page_url, iso_date_seo))
 
-    # 4. SITEMAP GENERATION
-    print("🗺️  Updating sitemap.xml...")
+    # 4. SITEMAP GENERATION (Corrected for SEO)
+    print("🗺️  Updating sitemap.xml with Last-Modified Tags...")
+    
+    # Use today for homepage lastmod
+    today_iso = datetime.now().strftime("%Y-%m-%d")
+    
     sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    sitemap += f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n'
-    for url in sitemap_urls:
-        sitemap += f'  <url><loc>{url}</loc><changefreq>weekly</changefreq></url>\n'
+    # Homepage entry
+    sitemap += f'  <url><loc>{BASE_URL}/</loc><lastmod>{today_iso}</lastmod><priority>1.0</priority></url>\n'
+    
+    # Article entries
+    for url, mod_date in sitemap_entries:
+        sitemap += f'  <url><loc>{url}</loc><lastmod>{mod_date}</lastmod></url>\n'
     sitemap += '</urlset>'
     
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap)
+
+    # 5. AUTO-PING GOOGLE (The Fix for 'Unknown URL')
+    print("📡 Pinging Google to index new changes...")
+    try:
+        ping_url = f"http://www.google.com/ping?sitemap={BASE_URL}/sitemap.xml"
+        # We use a simple get request to notify Google
+        p_response = requests.get(ping_url)
+        if p_response.status_code == 200:
+             print("✅ Google successfully notified! (Status 200)")
+        else:
+             print(f"⚠️ Google Ping returned: {p_response.status_code}")
+    except Exception as e:
+        print(f"⚠️ Google Ping failed (Network Issue): {e}")
 
     print(f"✅ Finished.")
     print(f"   - Files Updated: {updated_count}")
