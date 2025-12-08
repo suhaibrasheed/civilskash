@@ -553,10 +553,10 @@ header {
 
 .news-card.text-only .card-body {
     padding: 80px 30px 40px 30px;
-    min-height: 100%;
+    height: auto;
     display: block;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .news-card.text-only .card-body::before {
@@ -950,14 +950,12 @@ h2 {
     border-color: var(--primary);
 }
 
-/* BOLD HIGHLIGHT (Theme Sensitive - Text Only) */
 .summary-box b,
 .summary-box strong {
     background: transparent;
     color: var(--highlight-bold-text);
     padding: 0;
     font-weight: 800;
-    /* Extra bold to pop without bg */
 }
 
 
@@ -973,8 +971,8 @@ h2 {
 }
 
 /* =========================================
-           6. 3D QUIZ SYSTEM (PREMIUM & FLIP RESTORED)
-           ========================================= */
+6. 3D QUIZ SYSTEM (PREMIUM & FLIP RESTORED)
+========================================= */
 #quiz-fullscreen-layer {
     position: fixed;
     inset: 0;
@@ -1020,7 +1018,6 @@ h2 {
     transition: width 0.5s ease;
 }
 
-/* THE STAGE: Sets the 3D environment */
 .quiz-stage {
     flex: 1;
     display: flex;
@@ -1028,7 +1025,6 @@ h2 {
     justify-content: center;
     padding: 20px;
     perspective: 2000px;
-    /* Deep perspective for premium 3D feel */
     overflow: hidden;
 }
 
@@ -1041,18 +1037,15 @@ h2 {
     min-height: 400px;
     position: relative;
     transform-style: preserve-3d;
-    /* Crucial for Flip */
     transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
     transform: translateX(0) rotateY(0deg) scale(1);
     margin-bottom: 20px;
 }
 
-/* STATE: FLIPPED (The rotation) */
 .quiz-card-wrapper.is-flipped {
     transform: translateX(0) rotateY(180deg);
 }
 
-/* ANIMATION: SWIPE LEFT (Exit to Next) */
 .card-exit-left {
     animation: swipeOut 0.4s forwards cubic-bezier(0.55, 0.085, 0.68, 0.53);
 }
@@ -1069,7 +1062,6 @@ h2 {
     }
 }
 
-/* ANIMATION: STACK REVEAL (Enter from bottom/back) */
 .card-enter-stack {
     animation: stackIn 0.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -1086,7 +1078,6 @@ h2 {
     }
 }
 
-/* DEFAULT STATE (Reset) */
 .card-center-active {
     transform: translateX(0) rotateY(0deg);
     opacity: 1;
@@ -1133,12 +1124,10 @@ h2 {
 .quiz-question-text {
     font-family: var(--font-read);
     font-size: 1.15rem;
-    /* Matches Summary Box size */
     line-height: 1.75;
     color: var(--text-main);
     text-align: left;
     margin-top: 0;
-    /* Removed auto to let text fill from top */
     padding-top: 0;
     transition: font-size 0.2s ease;
 }
@@ -1156,7 +1145,6 @@ h2 {
 
     .quiz-navbar {
         padding: 4px 12px;
-        /* Very tight padding */
         height: 45px;
         min-height: 45px;
     }
@@ -1167,9 +1155,7 @@ h2 {
 
     .quiz-actions-area {
         padding: 10px 12px !important;
-        /* Reduced from 24px */
         padding-bottom: 20px !important;
-        /* iOS Safe Area consideration */
     }
 
     .quiz-stage {
@@ -1179,12 +1165,10 @@ h2 {
     .quiz-card-wrapper {
         margin-bottom: 5px;
         height: 100%;
-        /* Fill available space */
     }
 
     .quiz-scroll-area {
         padding: 20px 15px;
-        /* Wider text area */
     }
 
     .srs-btn {
@@ -1204,16 +1188,13 @@ h2 {
         padding: 10px;
     }
 
-    /* Smaller Nav Buttons */
 }
 
 .quiz-navbar .icon-btn {
     color: var(--text-main) !important;
     background: rgba(125, 125, 125, 0.15);
-    /* Slight pill background */
     width: 32px;
     height: 32px;
-    /* Fixed touch target */
     border: 1px solid var(--border-glass);
     z-index: 2002;
 }
@@ -1227,28 +1208,22 @@ h2 {
 [data-theme="light"] .quiz-navbar .icon-btn,
 [data-theme="light"] #modal-quiz-menu .icon-btn {
     color: #000000 !important;
-    /* Jet Black Icon */
     background: rgba(0, 0, 0, 0.08) !important;
-    /* Light Grey Background Pill */
     border: 1px solid rgba(0, 0, 0, 0.15) !important;
     opacity: 1 !important;
-    /* Ensure it's not transparent */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="light"] .quiz-navbar .icon-btn:hover,
 [data-theme="light"] #modal-quiz-menu .icon-btn:hover {
     background: #ef4444 !important;
-    /* Red Background */
     color: #ffffff !important;
-    /* White Icon */
     border-color: #ef4444 !important;
 }
 
 .quiz-navbar .icon-btn svg {
     stroke: currentColor;
     stroke-width: 2.5;
-    /* Make it slightly bolder */
 }
 
 .quiz-actions-area {
@@ -1569,7 +1544,6 @@ h2 {
     background: rgba(255, 255, 255, 0.05);
     color: var(--primary);
     transform: rotate(-180deg);
-    /* Playful interaction */
     opacity: 1;
 }
 
@@ -1578,8 +1552,8 @@ h2 {
 }
 
 /* =========================================
-           7. MODALS, CHIPS & SETTINGS
-           ========================================= */
+7. MODALS, CHIPS & SETTINGS
+========================================= */
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -1806,10 +1780,8 @@ select {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     z-index: 999;
     display: none;
-    /* Hidden normally */
 }
 
-/* When capturing, hide the toolbar and show watermark */
 .news-card.capturing .action-toolbar-container {
     display: none !important;
 }
@@ -1819,7 +1791,6 @@ select {
     right: 20px;
     display: block !important;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-    /* Stronger shadow for readability */
 }
 
 .news-card.capturing .card-img {
@@ -1833,10 +1804,8 @@ select {
     margin: 0 !important;
     padding-top: 0 !important;
     padding-bottom: 40px !important;
-    /* Breathing room at bottom */
     transform: none !important;
     border: none !important;
-    /* Remove any border that might look weird */
 }
 
 .news-card.capturing .scroll-content {
@@ -1894,21 +1863,13 @@ select {
 
     /* 4. LEFT PANE: Sticky Image */
     #feed-list.layout-paper .card-img {
-        /* Place in Column 1, Span ALL Rows to cover full height */
         grid-column: 1;
         grid-row: 1 / span 10;
-
-        /* STICKY MAGIC: Pinned to the visual top of the scroller */
         position: sticky;
         top: 0;
         left: 0;
-
-        /* Force dimensions */
         width: 100%;
         height: 80vh;
-        /* Match the card height exactly */
-
-        /* Visuals */
         object-fit: cover;
         border-radius: 0;
         border-right: 1px solid var(--border-glass);
@@ -1919,7 +1880,6 @@ select {
     /* 5. RIGHT PANE: Content Flow */
     #feed-list.layout-paper .card-body {
         grid-column: 2;
-        /* Natural flow: Text comes first */
 
         padding: 60px 60px 20px 60px;
         width: 100%;
@@ -1927,7 +1887,7 @@ select {
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
-        /* Ensure top align */
+        
     }
 
     /* 6. RIGHT PANE: Toolbar (Flows naturally after text) */
@@ -1944,7 +1904,6 @@ select {
     /* --- Styling Polish --- */
     #feed-list.layout-paper .action-toolbar {
         margin: 0;
-        /* Align Left */
         width: fit-content;
         background: var(--bg-body);
         border: 1px solid var(--border-glass);
@@ -2017,7 +1976,6 @@ select {
 .search-input {
     width: 100%;
     padding: 14px 16px 14px 45px;
-    /* Space for icon */
     background: var(--bg-body);
     border: 1px solid var(--border-glass);
     border-radius: 12px;
@@ -2044,7 +2002,6 @@ select {
 /* Highlight Styling for Search Matches */
 .search-highlight {
     background-color: rgba(244, 63, 94, 0.25);
-    /* Transparent Red */
     color: var(--red);
     font-weight: 800;
     border-radius: 2px;
@@ -2141,7 +2098,6 @@ select {
     justify-content: center;
     align-items: center;
     background: rgba(0, 0, 0, 0.02);
-    /* Slight contrast */
 }
 
 .ad-label-corner {
@@ -2159,7 +2115,6 @@ select {
 
 .google-ad-unit {
     min-height: 280px;
-    /* Force height so it doesn't collapse */
     background: radial-gradient(circle, var(--bg-card) 0%, var(--bg-body) 100%);
     border: 1px dashed var(--border-glass);
 }
@@ -2180,7 +2135,6 @@ select {
     width: 100%;
     background: transparent;
     transition: height 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    /* Spring feel */
     will-change: height;
 }
 
@@ -2210,7 +2164,6 @@ select {
 
 .ptr-icon-arrow.rotate {
     transform: rotate(180deg);
-    /* Visual cue to release */
 }
 
 .ptr-spinner {
@@ -2226,4 +2179,159 @@ select {
 /* Prevent browser native refresh on Android to avoid conflict */
 body {
     overscroll-behavior-y: contain;
+}
+
+/* =========================================
+   8. WEB (ARTICLE) LAYOUT - DESKTOP
+   ========================================= */
+
+/* 1. Container Setup */
+#feed-list.layout-web {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding: 40px 20px 100px 20px;
+    max-width: 100%;
+    margin: 0;
+    background: var(--bg-body);
+}
+
+/* 2. The Article Card - "Modern Card" Aesthetic */
+#feed-list.layout-web .news-card {
+    width: 100%;
+    max-width: 800px;
+    height: auto !important;
+    min-height: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 24px;
+    box-shadow: var(--shadow-hard);
+    overflow: hidden;
+    margin: 0;
+    padding-bottom: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#feed-list.layout-web .news-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+#feed-list.layout-web .scroll-content {
+    overflow: visible;
+    height: auto;
+    display: block;
+    padding: 0;
+}
+
+/* 3. Typography & Spacing */
+#feed-list.layout-web .card-body {
+    padding: 30px 40px 10px 40px;
+    /* Reduced bottom padding */
+}
+
+#feed-list.layout-web h2 {
+    font-size: 2.2rem;
+    /* Clean, big title */
+    font-weight: 700;
+    margin-bottom: 16px;
+    line-height: 1.3;
+    color: var(--text-main);
+    text-align: left;
+}
+
+#feed-list.layout-web .summary-box {
+    font-size: 1.25rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+    opacity: 0.95;
+    text-align: left;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+    display: block;
+    margin-top: 15px;
+}
+
+/* 4. Image Handling (Edge-to-Edge) */
+#feed-list.layout-web .card-img {
+    width: 100%;
+    height: 450px;
+    border-radius: 0;
+    margin-bottom: 0;
+    background-size: cover;
+    background-position: center;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+/* 5. Meta Data & Toolbar */
+#feed-list.layout-web .meta-row {
+    justify-content: flex-start;
+    gap: 12px;
+    margin-bottom: 15px;
+    padding-left: 0;
+}
+
+/* FIX #2: Category Badge Contrast */
+#feed-list.layout-web .badge {
+    padding: 6px 14px;
+    border-radius: 50px;
+    /* Pill shape */
+    font-size: 0.85rem;
+    background: var(--bg-glass);
+    /* Better contrast */
+    border: 1px solid var(--border-glass);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* FIX #3: Divider Removal & Spacing */
+#feed-list.layout-web .action-toolbar-container {
+    padding: 10px 40px 20px 40px;
+    justify-content: flex-start;
+    border-top: none;
+    /* REMOVE DIVIDER inside card */
+    background: transparent;
+    margin-top: 20px;
+}
+
+#feed-list.layout-web .action-toolbar {
+    background: transparent;
+    border: none;
+    padding: 0;
+    gap: 15px;
+    display: flex;
+    align-items: center;
+}
+
+/* FIX #1: Toolbar Buttons Clean Up */
+#feed-list.layout-web .icon-btn {
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#feed-list.layout-web .icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+    transform: scale(1.1);
+}
+
+#feed-list.layout-web .icon-btn svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2;
+}
+
+/* Specific color for Like button when active */
+#feed-list.layout-web .icon-btn.liked {
+    color: var(--red);
+    fill: var(--red);
 }
