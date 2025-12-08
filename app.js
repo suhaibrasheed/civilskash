@@ -153,6 +153,11 @@ const App = {
         filterBookmarks: false,
         activeCategory: 'all',
         desktopLayout: 'paper',
+        // SMART LOADING STATE
+        feedPointer: 20,       // How many cards are currently rendered
+        batchSize: 20,         // How many to load at a time
+        totalAvailable: 0,     // Total items in memory
+        isLoadingMore: false,  // Prevent double triggers
         searchTerm: '',
         srsData: {},
         isDark: true,
@@ -624,7 +629,12 @@ const App = {
             App.UI.closeModals(); // Close menu first
 
             if (type === 'image') {
-                setTimeout(() => this.shareAsImage(id), 300);
+                // Share as Image (Full Content)
+                setTimeout(() => this.shareAsImage(id, 'image'), 300);
+            }
+            else if (type === 'question') {
+                // Share as Question (Hidden Cloze)
+                setTimeout(() => this.shareAsImage(id, 'question'), 300);
             }
             else if (type === 'link') {
                 this.shareSmart(id);
@@ -662,15 +672,14 @@ const App = {
             }
         },
 
-
-
-        async shareAsImage(cardId) {
+        // 4. SHARE AS IMAGE (GENERATOR)
+        async shareAsImage(cardId, mode = 'question') {
             const originalCard = document.getElementById(cardId);
             const cardData = App.State.feed.find(c => c.id === cardId); // Data Backup
 
             if (!originalCard) return;
 
-            App.UI.toast("Designing Card... 🎨");
+            App.UI.toast(mode === 'question' ? "Designing Quiz... 🧩" : "Designing Note... 🎨");
 
             try {
                 const canvas = await html2canvas(originalCard, {
@@ -692,8 +701,19 @@ const App = {
                             scrollContent.style.height = 'auto';
                             scrollContent.style.overflow = 'visible';
 
+                            // --- HANDLE CLOZE VISIBILITY BASED ON MODE ---
                             const keywords = clonedCard.querySelectorAll('.keyword');
-                            keywords.forEach(k => { k.innerText = '[ ...?... ]'; });
+                            if (mode === 'question') {
+                                // HIDE Answer (Mask it)
+                                keywords.forEach(k => { k.innerText = '[ ...?... ]'; });
+                            } else {
+                                // SHOW Answer (Ensure it looks like a highlight)
+                                keywords.forEach(k => {
+                                    k.classList.remove('is-hidden'); // Force visibility
+                                    // Optional: Add specific highlight style if needed, 
+                                    // but default .keyword style should work.
+                                });
+                            }
 
                             let imgUrl = null;
                             const originalBgDiv = originalCard.querySelector('.card-img');
@@ -729,8 +749,12 @@ const App = {
                     if (!blob) throw new Error("Image generation failed");
 
                     const titleEl = originalCard.querySelector('h2');
-                    const titleSlug = titleEl ? titleEl.innerText.substring(0, 15).replace(/[^a-z0-9]/gi, '_') : 'Note';
-                    const fileName = `CivilsKash_${titleSlug}.png`;
+                    let titleSlug = titleEl ? titleEl.innerText.substring(0, 15).replace(/[^a-z0-9]/gi, '_') : 'Note';
+
+                    // Add suffix based on mode
+                    const suffix = mode === 'question' ? '_quiz' : '_full';
+                    const fileName = `CivilsKash_${titleSlug}${suffix}.png`;
+
                     const file = new File([blob], fileName, { type: "image/png" });
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -781,13 +805,18 @@ const App = {
             await App.DB.put('settings', 'desktopLayout', mode);
 
             const feed = document.getElementById('feed-list');
-            if (mode === 'paper') {
-                feed.classList.add('layout-paper');
-            } else {
-                feed.classList.remove('layout-paper');
-            }
+
+            // Reset Classes
+            feed.classList.remove('layout-paper', 'layout-web');
+
+            // Apply New Class
+            if (mode === 'paper') feed.classList.add('layout-paper');
+            if (mode === 'web') feed.classList.add('layout-web');
 
             App.UI.toast(`Layout changed to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+
+            // Re-render to apply specific inline styles (like line-clamp removal)
+            App.UI.renderFeed(false);
         },
         toggleBookmarksFilter() {
             App.State.filterBookmarks = !App.State.filterBookmarks;
@@ -1518,213 +1547,194 @@ const App = {
             select.innerHTML = html;
         },
 
-        renderFeed() {
+        renderFeed(appendMode = false) {
             const container = document.getElementById('feed-list');
 
-            // Get current state variables
-            const isHidden = App.State.isGlobalHide;
+            // 1. Get Base Data (Filtered)
             const term = App.State.searchTerm;
-            const deepLinkId = App.State.activeDeepLink; // CHECK FOR SINGLE CARD MODE
+            let allItems = App.State.feed; // Start with raw feed
 
-            // --- 1. FILTERING LOGIC ---
-            let itemsToShow = App.State.feed;
-
-            // A. DEEP LINK PRIORITY (If link exists, ignore everything else)
-            if (deepLinkId) {
-                itemsToShow = itemsToShow.filter(item => item.id === deepLinkId);
-
-                // SAFETY: If ID in link is invalid (deleted card), fallback to normal feed
-                if (itemsToShow.length === 0) {
-                    App.UI.toast("Note not found. Showing Feed.");
-                    App.State.activeDeepLink = null;
-                    itemsToShow = App.State.feed; // Reset
-                    // Clean URL so user doesn't get stuck
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                } else {
-                    // SUCCESS: Update Browser Tab Title (Regression Fix)
-                    document.title = `${itemsToShow[0].title} - CivilsKash`;
-                }
+            // --- APPLY FILTERS ---
+            // (Optimization: Only filter if necessary)
+            if (App.State.activeDeepLink) {
+                allItems = allItems.filter(i => i.id === App.State.activeDeepLink);
+                if (allItems.length > 0) document.title = `${allItems[0].title} - CivilsKash`;
             } else {
-                // B. STANDARD FILTERS (Only run if NOT in deep link mode)
-                document.title = "CivilsKash - for Daily Current Affairs"; // Default Title
-
+                document.title = "CivilsKash - for Daily Current Affairs";
                 if (term.length > 0) {
-                    itemsToShow = itemsToShow.filter(item => {
-                        const content = (item.title + ' ' + item.summary).toLowerCase();
-                        return content.includes(term);
-                    });
+                    allItems = allItems.filter(i => (i.title + ' ' + i.summary).toLowerCase().includes(term));
                 }
                 if (App.State.activeCategory !== 'all') {
-                    itemsToShow = itemsToShow.filter(item => item.category === App.State.activeCategory);
+                    allItems = allItems.filter(i => i.category === App.State.activeCategory);
                 }
                 if (App.State.filterBookmarks) {
-                    itemsToShow = itemsToShow.filter(item => App.State.bookmarks.has(item.id));
+                    allItems = allItems.filter(i => App.State.bookmarks.has(i.id));
                 }
             }
 
-            // --- 2. EMPTY STATE HANDLING ---
-            if (itemsToShow.length === 0) {
+            App.State.totalAvailable = allItems.length;
+
+            // 2. Handle Pagination Logic
+            if (!appendMode) {
+                // Reset: User changed filter/search or refreshed
+                container.innerHTML = '';
+                App.State.feedPointer = App.State.batchSize; // Reset to initial batch
+                container.scrollTop = 0; // Jump to top
+            }
+
+            // 3. Slice Data for *Current View*
+            // If appending, we only want the *new* slice. 
+            // If resetting, we want 0 to batchSize.
+            let itemsToRender;
+
+            if (appendMode) {
+                const start = App.State.feedPointer - App.State.batchSize;
+                const end = App.State.feedPointer;
+                itemsToRender = allItems.slice(start, end);
+            } else {
+                itemsToRender = allItems.slice(0, App.State.batchSize);
+            }
+
+            // --- EMPTY STATE ---
+            if (!appendMode && itemsToRender.length === 0) {
                 let msg = "No items found.";
                 let icon = "📭";
                 if (term.length > 0) { msg = `No results found for "${term}"`; icon = "🔍"; }
 
                 container.innerHTML = `
-                            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); display:flex; flex-direction:column; align-items:center;">
-                                <div style="font-size: 3rem; margin-bottom: 20px;">${icon}</div>
-                                <p>${msg}</p>
-                                <button class="btn-primary" style="margin-top:20px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;" onclick="App.Actions.goHome()">Reset Filters</button>
-                            </div>`;
+                    <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); display:flex; flex-direction:column; align-items:center;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">${icon}</div>
+                        <p>${msg}</p>
+                        <button class="btn-primary" style="margin-top:20px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;" onclick="App.Actions.goHome()">Reset Filters</button>
+                    </div>`;
                 return;
             }
 
-            // --- 3. RENDER LOOP ---
+            // 4. Generate HTML (Efficient String Buffer)
             let htmlBuffer = '';
 
-            // INJECT BACK BUTTON (Only if in Deep Link Mode)
-            if (deepLinkId) {
+            // Inject Back Button only once at the top if Deep Linked
+            if (App.State.activeDeepLink && !appendMode) {
                 htmlBuffer += `
-                            <div style="grid-column: 1/-1; width:100%; display:flex; justify-content:center; margin-bottom:30px; animation: fadeIn 0.5s ease;">
-                                <button class="btn-large btn-outline" onclick="App.Actions.goHome()" 
-                                    style="background:var(--bg-card); border:1px solid var(--border-glass); color:var(--text-main); max-width: 200px; gap:10px; box-shadow:var(--shadow-soft);">
-                                    <span>←</span> <span>View All Notes</span>
-                                </button>
-                            </div>
-                        `;
+                 <div style="grid-column: 1/-1; width:100%; display:flex; justify-content:center; margin-bottom:30px; animation: fadeIn 0.5s ease;">
+                     <button class="btn-large btn-outline" onclick="App.Actions.goHome()" 
+                         style="background:var(--bg-card); border:1px solid var(--border-glass); color:var(--text-main); max-width: 200px; gap:10px; box-shadow:var(--shadow-soft);">
+                         <span>←</span> <span>View All Notes</span>
+                     </button>
+                 </div>`;
             }
 
-            // HELPER: SMART HIGHLIGHTER (Kept exactly as before)
-            const processSmartContent = (rawText, query, isSummary) => {
-                let workingText = rawText;
-                const clozeStorage = [];
-                const hiddenClass = isHidden ? 'is-hidden' : '';
+            const isHidden = App.State.isGlobalHide;
 
-                if (isSummary) {
-                    workingText = workingText.replace(/\{\{c\d+::(.*?)\}\}/g, (match, content) => {
-                        const clozeHtml = `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">${content}</span>`;
-                        clozeStorage.push(clozeHtml);
-                        return `__PROTECTED_CLOZE_${clozeStorage.length - 1}__`;
-                    });
-                }
-                if (query && query.length > 0) {
-                    const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = new RegExp(`(${safeQuery})`, 'gi');
-                    workingText = workingText.replace(regex, '<span class="search-highlight">$1</span>');
-                }
-                if (isSummary) {
-                    clozeStorage.forEach((html, index) => {
-                        workingText = workingText.replace(`__PROTECTED_CLOZE_${index}__`, html);
-                    });
-                }
-                return workingText;
-            };
-
-            let cardCounter = 0;
-
-            itemsToShow.forEach((item, idx) => {
-                cardCounter++;
+            itemsToRender.forEach((item, idx) => {
+                // Calculate absolute index for animations/logic
+                const globalIdx = appendMode ? (idx + (App.State.feedPointer - App.State.batchSize)) : idx;
 
                 const hasImg = item.image && item.image.trim() !== '';
                 const isLiked = App.State.bookmarks.has(item.id);
                 const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
-                const finalTitle = processSmartContent(item.title, term, false);
-                const finalSummary = processSmartContent(item.summary, term, true);
                 const isVeryNew = (Date.now() - item.timestamp) < 86400000;
                 const badgeClass = isVeryNew ? 'badge badge-new' : 'badge';
 
-                // ---------------------------------------------------------
-                // 🛠️ FIX START: DYNAMIC STYLING FOR NO-IMAGE CARDS
-                // If no image, we remove the line-clamp so text fills the scroll area
-                // ---------------------------------------------------------
-                const summaryStyle = hasImg
-                    ? ''
-                    : 'style="-webkit-line-clamp: unset; line-clamp: unset; max-height: none; display: block;"';
+                // --- SMART HIGHLIGHTER HELPERS ---
+                // Reuse existing processSmartContent logic logic (duplicated here for now since it was internal)
+                // Note: ideally explicit function but inline works if concise. 
+                // We'll re-implement the helper here or assume it's accessible.
+                // Redefining for safety as scoping might have changed.
+
+                const processSmartContent = (rawText, query, isSummary) => {
+                    let workingText = rawText;
+                    const clozeStorage = [];
+                    const hiddenClass = isHidden ? 'is-hidden' : '';
+
+                    if (isSummary) {
+                        workingText = workingText.replace(/\{\{c\d+::(.*?)\}\}/g, (match, content) => {
+                            const clozeHtml = `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">${content}</span>`;
+                            clozeStorage.push(clozeHtml);
+                            return `__PROTECTED_CLOZE_${clozeStorage.length - 1}__`;
+                        });
+                    }
+                    if (query && query.length > 0) {
+                        const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`(${safeQuery})`, 'gi');
+                        workingText = workingText.replace(regex, '<span class="search-highlight">$1</span>');
+                    }
+                    if (isSummary) {
+                        clozeStorage.forEach((html, index) => {
+                            workingText = workingText.replace(`__PROTECTED_CLOZE_${index}__`, html);
+                        });
+                    }
+                    return workingText;
+                };
+
+                const finalTitle = processSmartContent(item.title, term, false);
+                const finalSummary = processSmartContent(item.summary, term, true);
+
+                // 🛠️ FIX: Force layout styles for Web/No-Img
+                // If layout is 'web', we ALWAYS want unset line-clamp.
+                // If layout is others, we check for image.
+                const isWebLayout = App.State.desktopLayout === 'web';
+
+                const summaryStyle = (isWebLayout || !hasImg)
+                    ? 'style="-webkit-line-clamp: unset; line-clamp: unset; max-height: none; display: block;"'
+                    : '';
 
                 htmlBuffer += `
-                        <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${idx + 1}" 
-                                ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
-                                ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
-                            
-                            <div class="watermark-overlay">Civils<span style="color:var(--primary)">Kash</span></div>
-                            <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
+                <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${globalIdx}"
+                        ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
+                        ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
+                    
+                    <div class="watermark-overlay">Civils<span style="color:var(--primary)">Kash</span></div>
+                    <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
 
-                            <div class="scroll-content">
-                                ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
-                                
-                                <div class="card-body">
-                                    <div class="meta-row">
-                                        <span class="${badgeClass}" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
-                                        <span class="date">${item.date}</span>
-                                    </div>
-                                    <h2>${finalTitle}</h2>
-                                    <p class="summary-box" ${summaryStyle}>${finalSummary}</p>
-                                </div>
-
-                                <div class="action-toolbar-container" onclick="event.stopPropagation()">
-                                    <div class="action-toolbar">
-                                        <button class="icon-btn" onclick="event.stopPropagation(); App.Actions.openShareMenu('${item.id}')" title="Share Options">
-                                            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                                        </button>
-                                        <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
-                                        <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
-                                            ${eyeIcon}
-                                        </button>
-                                        <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
-                                        <button class="icon-btn ${isLiked ? 'liked' : ''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
-                                            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                                        </button>
-                                    </div>
-                                </div>
+                    <div class="scroll-content">
+                        ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
+                        
+                        <div class="card-body">
+                            <div class="meta-row">
+                                <span class="${badgeClass}" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
+                                <span class="date">${item.date || 'Recent'}</span>
                             </div>
-                        </article>`;
+                            <h2>${finalTitle}</h2>
+                            <p class="summary-box" ${summaryStyle}>${finalSummary}</p> </div>
 
-                // B. AD INJECTION LOGIC (Disabled if in Deep Link Mode to keep it clean)
-                if (!deepLinkId && cardCounter % App.Ads.config.ratio === 0 && idx !== itemsToShow.length - 1 && App.Ads && App.Ads.getNextType() !== 'none') {
-                    const adType = App.Ads.getNextType();
-                    if (adType === 'google') {
-                        htmlBuffer += `
-                                <article class="news-card google-ad-unit">
-                                    <div class="ad-label-corner">Ad</div>
-                                    <div class="google-ad-wrapper">
-                                        <ins class="adsbygoogle"
-                                            style="display:block; width:100%;"
-                                            data-ad-client="${App.Ads.config.googleClientId}"
-                                            data-ad-slot="${App.Ads.config.googleSlotId}"
-                                            data-ad-format="auto"
-                                            data-full-width-responsive="true"></ins>
-                                    </div>
-                                </article>`;
-                    } else {
-                        const ad = App.Ads.getRotatedSelfAd();
-                        htmlBuffer += `
-                                <article class="news-card ad-unit" onclick="window.open('${ad.link}', '_blank')" style="cursor:pointer;">
-                                    <div class="scroll-content">
-                                        <div class="card-img" style="background-image: url('${ad.image}'); filter: grayscale(20%);"></div>
-                                        <div class="card-body">
-                                            <div class="meta-row">
-                                                <span class="badge" style="border:1px solid var(--text-muted); background:transparent; color:var(--text-muted);">RECOMMENDED</span>
-                                                <span class="date">Promoted</span>
-                                            </div>
-                                            <h2>${ad.title}</h2>
-                                            <p class="summary-box" style="opacity: 0.8;">${ad.summary}</p>
-                                        </div>
-                                        <div class="ad-cta-container">
-                                            <button class="ad-cta-btn">
-                                                ${ad.cta} 
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </article>`;
-                    }
-                }
+                        <div class="action-toolbar-container" onclick="event.stopPropagation()">
+                            <div class="action-toolbar">
+                                <button class="icon-btn" onclick="event.stopPropagation(); App.Actions.openShareMenu('${item.id}')" title="Share Options">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                </button>
+                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+                                <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
+                                    ${eyeIcon}
+                                </button>
+                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+                                <button class="icon-btn ${isLiked ? 'liked' : ''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </article>`;
             });
 
-            container.innerHTML = htmlBuffer;
+            // 5. Inject into DOM
+            if (appendMode) {
+                // Create a temp container to convert string to nodes
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlBuffer;
+                while (tempDiv.firstChild) {
+                    container.appendChild(tempDiv.firstChild);
+                }
+            } else {
+                container.innerHTML = htmlBuffer;
+            }
 
             // --- C. TRIGGER AD LOAD ---
             setTimeout(() => {
                 if (App.Ads) App.Ads.triggerGoogleAds();
             }, 100);
+
+            App.State.isLoadingMore = false; // Release lock
         }
     },
 
@@ -1771,16 +1781,36 @@ const App = {
             await this.DB.init();
             this.PTR.init();
 
+            // 1.5 INFINITE SCROLL ENABLER
+            window.addEventListener('scroll', () => {
+                // Throttle: Don't load if already loading or maxed out
+                if (App.State.isLoadingMore || App.State.feedPointer >= App.State.totalAvailable) return;
+
+                const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+
+                // Trigger when user is 800px from bottom (approx 1-2 cards)
+                if (scrollTop + clientHeight >= scrollHeight - 800) {
+                    App.State.isLoadingMore = true;
+
+                    // Increment Pointer
+                    App.State.feedPointer += App.State.batchSize;
+                    if (App.State.feedPointer > App.State.totalAvailable) {
+                        App.State.feedPointer = App.State.totalAvailable;
+                    }
+
+                    console.log(`🚀 Loading Batch... [${App.State.feedPointer}/${App.State.totalAvailable}]`);
+                    App.UI.renderFeed(true); // TRUE = Append Mode
+                }
+            }, { passive: true });
+
             // 2. RESTORE PREFERENCES
             let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
             await App.Actions.setTheme(savedTheme);
-
-            // FIX: Changed default fallback from 'grid' to 'paper'
             let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'paper';
             App.State.desktopLayout = savedLayout;
-
-            // FIX: Immediately apply the class if mode is paper
-            if (savedLayout === 'paper') document.getElementById('feed-list').classList.add('layout-paper');
+            const feedList = document.getElementById('feed-list');
+            if (savedLayout === 'paper') feedList.classList.add('layout-paper');
+            if (savedLayout === 'web') feedList.classList.add('layout-web');
 
             const layoutSelect = document.getElementById('layout-select');
             if (layoutSelect) layoutSelect.value = savedLayout;
