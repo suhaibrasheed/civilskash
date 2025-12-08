@@ -2233,7 +2233,6 @@ body {
 
 #feed-list.layout-web h2 {
     font-size: 2.2rem;
-    /* Clean, big title */
     font-weight: 700;
     margin-bottom: 16px;
     line-height: 1.3;
@@ -2272,25 +2271,20 @@ body {
     padding-left: 0;
 }
 
-/* FIX #2: Category Badge Contrast */
 #feed-list.layout-web .badge {
     padding: 6px 14px;
     border-radius: 50px;
-    /* Pill shape */
     font-size: 0.85rem;
     background: var(--bg-glass);
-    /* Better contrast */
     border: 1px solid var(--border-glass);
     color: var(--primary);
     font-weight: 700;
 }
 
-/* FIX #3: Divider Removal & Spacing */
 #feed-list.layout-web .action-toolbar-container {
     padding: 10px 40px 20px 40px;
     justify-content: flex-start;
     border-top: none;
-    /* REMOVE DIVIDER inside card */
     background: transparent;
     margin-top: 20px;
 }
@@ -2304,7 +2298,6 @@ body {
     align-items: center;
 }
 
-/* FIX #1: Toolbar Buttons Clean Up */
 #feed-list.layout-web .icon-btn {
     width: 40px;
     height: 40px;
