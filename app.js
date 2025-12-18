@@ -77,7 +77,7 @@ const App = {
     // --- DATABASE LAYER (Robust) ---
     DB: {
         dbName: 'CivilsKashDB',
-        version: 3,
+        version: 4,  // Incremented for curated_notes store
         db: null,
         isWorking: true, // Flag if DB is active
         async init() {
@@ -97,6 +97,7 @@ const App = {
                         if (!db.objectStoreNames.contains('bookmarks')) db.createObjectStore('bookmarks');
                         if (!db.objectStoreNames.contains('srs_data')) db.createObjectStore('srs_data', { keyPath: 'id' });
                         if (!db.objectStoreNames.contains('feed_cache')) db.createObjectStore('feed_cache', { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains('curated_notes')) db.createObjectStore('curated_notes', { keyPath: 'id' });
                     };
                     request.onsuccess = (e) => {
                         this.db = e.target.result;
@@ -143,26 +144,49 @@ const App = {
                     req.onerror = () => resolve([]);
                 } catch (e) { resolve([]); }
             });
+        },
+        // Curated Notes specific methods
+        async getCuratedNotes() {
+            return this.getAll('curated_notes');
+        },
+        async saveCuratedNote(note) {
+            if (!this.isWorking || !this.db) return;
+            try {
+                const tx = this.db.transaction('curated_notes', 'readwrite');
+                tx.objectStore('curated_notes').put(note);
+            } catch (e) { console.error("Save Curated Note Failed", e); }
+        },
+        async deleteCuratedNote(id) {
+            if (!this.isWorking || !this.db) return;
+            try {
+                const tx = this.db.transaction('curated_notes', 'readwrite');
+                tx.objectStore('curated_notes').delete(id);
+            } catch (e) { console.error("Delete Curated Note Failed", e); }
         }
     },
 
     // --- STATE MANAGEMENT ---
     State: {
         feed: [],
+        curatedNotes: [],  // Dedicated storage for user-created notes
+        editingNoteId: null,  // Track if we're editing an existing note
         bookmarks: new Set(),
         filterBookmarks: false,
         activeCategory: 'all',
         desktopLayout: 'paper',
-        // SMART LOADING STATE
-        feedPointer: 20,       // How many cards are currently rendered
-        batchSize: 20,         // How many to load at a time
+        feedPointer: 12,       // How many cards are currently rendered
+        batchSize: 12,         // How many to load at a time (optimized for performance)
         totalAvailable: 0,     // Total items in memory
         isLoadingMore: false,  // Prevent double triggers
+        // ISSUE #2 FIX: Virtual Scroll State
+        maxDomCards: 50,       // Maximum cards to keep in DOM
+        virtualScrollOffset: 0, // Track how many cards have been recycled
         searchTerm: '',
         srsData: {},
         isDark: true,
         isGlobalHide: false,
         quiz: { mode: null, deck: [], index: 0, currentScore: 0 },
+        pendingFeedUpdate: null,  // NEW: Holds fresh data until user clicks refresh
         contentUrl: 'https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec',
         activeDeepLink: null
     },
@@ -387,14 +411,24 @@ const App = {
     Data: {
         mergeStrategy(dynamicItems) {
             const hardcoded = this.getHardcodedData();
+            const curated = App.State.curatedNotes || [];  // Protect curated notes
             const feedMap = new Map();
 
-            // A. Load Hardcoded (Base Layer)
-            hardcoded.forEach(item => feedMap.set(item.id, item));
+            // A. Load Curated Notes FIRST (Highest Priority - User's Own Data)
+            curated.forEach(item => feedMap.set(item.id, { ...item, isCurated: true }));
 
-            // B. Merge Dynamic (Overlay Layer)
+            // B. Load Hardcoded (Base Layer)
+            hardcoded.forEach(item => {
+                if (!feedMap.has(item.id)) {  // Don't overwrite curated
+                    feedMap.set(item.id, item);
+                }
+            });
+
+            // C. Merge Dynamic (Overlay Layer) - Will NOT overwrite curated
             if (Array.isArray(dynamicItems)) {
                 dynamicItems.forEach(item => {
+                    if (feedMap.has(item.id) && feedMap.get(item.id).isCurated) return;
+
                     const existing = feedMap.get(item.id);
                     if (existing && !item.timestamp) {
                         item.timestamp = existing.timestamp;
@@ -403,10 +437,18 @@ const App = {
                 });
             }
 
+            // D. Smart Sorting: Curated notes appear before others on same date
             return Array.from(feedMap.values()).sort((a, b) => {
-                // Fallback: If timestamp missing, rely on ID index
                 const tA = a.timestamp || 0;
                 const tB = b.timestamp || 0;
+                const dayA = Math.floor(tA / 86400000);
+                const dayB = Math.floor(tB / 86400000);
+
+                if (dayA === dayB) {
+                    if (a.isCurated && !b.isCurated) return -1;
+                    if (!a.isCurated && b.isCurated) return 1;
+                }
+
                 return tB - tA; // Descending (Newest First)
             });
         },
@@ -731,6 +773,9 @@ const App = {
                                 imgDiv.className = 'export-image-16x11';
                                 imgDiv.style.backgroundImage = `url('${imgUrl}')`;
                                 scrollContent.insertBefore(imgDiv, scrollContent.firstChild);
+                            } else {
+                                // 2b. If no image, Activate Premium Text Mode
+                                clonedCard.classList.add('premium-text-only');
                             }
                         }
 
@@ -815,7 +860,6 @@ const App = {
 
             App.UI.toast(`Layout changed to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
 
-            // Re-render to apply specific inline styles (like line-clamp removal)
             App.UI.renderFeed(false);
         },
         toggleBookmarksFilter() {
@@ -1018,7 +1062,6 @@ const App = {
             let count = parseInt(localStorage.getItem('civils_streak_count') || '0');
             const today = new Date().toISOString().split('T')[0];
 
-            // Check if streak is broken (last date was before yesterday)
             if (lastDate) {
                 const d1 = new Date(lastDate);
                 const d2 = new Date(today);
@@ -1051,12 +1094,6 @@ const App = {
             let count = parseInt(localStorage.getItem('civils_streak_count') || '0');
 
             if (lastDate !== today) {
-                // Either started new or continued from yesterday
-                // If it was broken, logic in updateStreakInfo sets visually to 0, 
-                // but here we just increment. 
-                // Realistically, we reset if broken logic above ran.
-
-                // Simple check: Is it consecutive?
                 if (lastDate) {
                     const d1 = new Date(lastDate);
                     const d2 = new Date(today);
@@ -1073,15 +1110,28 @@ const App = {
             }
         },
 
-        // 2. CARD PARSER
+        // 2. Content Hash Generator
+        _generateContentHash(text) {
+            let hash = 0;
+            const cleanText = text.replace(/\s+/g, '').toLowerCase();
+            for (let i = 0; i < cleanText.length; i++) {
+                hash = ((hash << 5) - hash) + cleanText.charCodeAt(i);
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return Math.abs(hash).toString(36);
+        },
+
+        // 3. CARD PARSER (Uses content-hash IDs)
         _createAtomicCards(item, itemIndex) {
             if (!item.summary) return [];
             const chunks = item.summary.split(/<br\s*\/?>|\n\n/i);
             const cards = [];
 
-            chunks.forEach((chunk, index) => {
+            chunks.forEach((chunk) => {
                 if (chunk.includes('{{c')) {
-                    const subId = `${item.id}_part_${index}`;
+                    // ISSUE #3 FIX: Use content hash instead of index
+                    const contentHash = this._generateContentHash(chunk);
+                    const subId = `${item.id}_h_${contentHash}`;
                     const regex = /\{\{c\d+::(.*?)\}\}/g;
 
                     cards.push({
@@ -1100,45 +1150,71 @@ const App = {
 
         // 3. DECK GENERATION (Practice, Test, Cram)
         generateDeck(mode) {
-            // Flatten all cards
-            let allCards = App.State.feed.flatMap((item, idx) => this._createAtomicCards(item, idx));
+            // 1. HELPER: Calculate Urgency Score
+            // High Score = More Urgent
+            const getUrgency = (card) => {
+                // Default Intervals (in ms)
+                const intervals = {
+                    'again': 0.1 * 24 * 60 * 60 * 1000,    // 2.4 hours
+                    'viewed': 0.5 * 24 * 60 * 60 * 1000,   // 12 hours
+                    'hard': 1.0 * 24 * 60 * 60 * 1000,     // 1 day
+                    'good': 3.0 * 24 * 60 * 60 * 1000,     // 3 days
+                    'easy': 7.0 * 24 * 60 * 60 * 1000,     // 7 days
+                };
 
-            // Add Metadata
+                if (card.status === 'new') return 100; // Arbitrary high urgency for new cards if picked
+
+                const lastReview = card.lastReview || 0;
+                const timeSince = Date.now() - lastReview;
+                const idealInterval = intervals[card.status] || intervals['viewed'];
+
+                return timeSince / idealInterval;
+            };
+
+            // 2. PREPARE DATA: Flatten & Attach Metadata
+            let allCards = App.State.feed.flatMap((item, idx) => this._createAtomicCards(item, idx));
             const cardsWithMeta = allCards.map(card => {
                 const dbEntry = App.State.srsData[card.id];
-                return {
-                    ...card,
-                    lastReview: dbEntry ? dbEntry.lastReview : 0,
-                    status: dbEntry ? dbEntry.status : 'new'
-                };
+                const status = dbEntry ? dbEntry.status : 'new';
+                const lastReview = dbEntry ? dbEntry.lastReview : 0;
+
+                // Form the enriched object
+                const enriched = { ...card, status, lastReview };
+
+                // Attach dynamic urgency score
+                enriched.urgencyScore = getUrgency(enriched);
+                return enriched;
             });
 
-            // --- MODE A: CRAM MODE (Old & Hard Only) ---
+            // --- MODE A: CRAM MODE (Smart Triage) ---
             if (mode === 'cram') {
+                // Focus: Anything that isn't brand new.
+                // Priority: Highest Urgency Score (Overdue Hard > Overdue Good > Recent Hard)
                 let cramCandidates = cardsWithMeta.filter(c => c.status !== 'new');
 
-                if (cramCandidates.length === 0) return [];
+                // Fallback: If literally zero reviews exist, use everything
+                if (cramCandidates.length === 0) cramCandidates = [...cardsWithMeta];
 
-                cramCandidates.sort((a, b) => {
-                    const isAgainA = (a.status === 'again');
-                    const isAgainB = (b.status === 'again');
-
-                    if (isAgainA && !isAgainB) return -1; // A comes first
-                    if (!isAgainA && isAgainB) return 1;  // B comes first
-
-                    return a.lastReview - b.lastReview;
-                });
+                // Sort Descending by Urgency
+                cramCandidates.sort((a, b) => b.urgencyScore - a.urgencyScore);
 
                 return cramCandidates.slice(0, 10);
             }
 
-            // --- MODE B: PRACTICE (Newest & Unseen) ---
+            // --- MODE B: PRACTICE (Queue) ---
             if (mode === 'practice') {
                 if (App.State.activeCategory !== 'all') {
-                    cardsWithMeta.filter(c => c.category === App.State.activeCategory); // Bug fix: filter returns new array
+                    // Note: Filter creates a new array, so we must assign it back or use a chained approach
+                    const filtered = cardsWithMeta.filter(c => c.category === App.State.activeCategory);
+                    // Use the filtered list for sorting
+                    filtered.sort((a, b) => {
+                        if (a.lastReview !== b.lastReview) return a.lastReview - b.lastReview; // Unseen (0) first
+                        return a.feedIndex - b.feedIndex;
+                    });
+                    return filtered.slice(0, 10);
                 }
 
-                // Sort: Unseen (0) > Newest Index
+                // Global Practice
                 cardsWithMeta.sort((a, b) => {
                     if (a.lastReview !== b.lastReview) return a.lastReview - b.lastReview;
                     return a.feedIndex - b.feedIndex;
@@ -1147,40 +1223,52 @@ const App = {
                 return cardsWithMeta.slice(0, 10);
             }
 
-            // --- MODE C: DAILY MASTERY (SRS Weighted) ---
-            // Standard SRS Bucket Logic
+            // --- MODE C: DAILY MASTERY (Weighted Buckets) ---
+            // Buckets
             const buckets = { new: [], learning: [], review: [] };
+
             cardsWithMeta.forEach(card => {
                 if (card.status === 'new') buckets.new.push(card);
                 else if (card.status === 'again' || card.status === 'hard') buckets.learning.push(card);
                 else buckets.review.push(card);
             });
 
-            // Sort buckets
+            // Weighted Sorting
+            // New: Random Shuffle (to explore different topics)
             buckets.new.sort(() => 0.5 - Math.random());
-            buckets.learning.sort((a, b) => a.lastReview - b.lastReview);
-            buckets.review.sort((a, b) => a.lastReview - b.lastReview);
 
+            // Learning & Review: Sort by Urgency (Descending) - Most overdue first
+            const urgencySort = (a, b) => b.urgencyScore - a.urgencyScore;
+            buckets.learning.sort(urgencySort);
+            buckets.review.sort(urgencySort);
+
+            // Selection Logic (4-4-2 Split)
             let finalDeck = [];
             const TARGET = 10;
 
-            // Fill Logic
-            const take = (arr, n) => {
-                const chunk = arr.splice(0, n);
-                finalDeck.push(...chunk);
-                return n - chunk.length; // deficit
+            // Helper to pull N cards
+            const pull = (source, count) => {
+                const extracted = source.splice(0, count);
+                finalDeck.push(...extracted);
+                return count - extracted.length; // Returns MISSING count
             };
 
+            // 1. Initial Pull
             let deficit = 0;
-            deficit += take(buckets.new, 4);
-            deficit += take(buckets.learning, 4);
-            deficit += take(buckets.review, 2);
+            deficit += pull(buckets.new, 4);      // 4 New
+            deficit += pull(buckets.learning, 4); // 4 Learning
+            deficit += pull(buckets.review, 2);   // 2 Review
 
-            // Backfill
+            // 2. Intelligent Backfill (if deficit > 0)
+            // Priority: Learning > New > Review
             if (finalDeck.length < TARGET) {
-                take(buckets.learning, 10);
-                take(buckets.new, 10);
-                take(buckets.review, 10);
+                if (buckets.learning.length > 0) pull(buckets.learning, TARGET - finalDeck.length);
+            }
+            if (finalDeck.length < TARGET) {
+                if (buckets.new.length > 0) pull(buckets.new, TARGET - finalDeck.length);
+            }
+            if (finalDeck.length < TARGET) {
+                if (buckets.review.length > 0) pull(buckets.review, TARGET - finalDeck.length);
             }
 
             return finalDeck.slice(0, TARGET);
@@ -1217,7 +1305,7 @@ const App = {
 
             this.session = {
                 mode: mode, deck: deck, pointer: 0,
-                stats: { score: 0 },
+                stats: { score: 0, breakdown: { again: 0, hard: 0, good: 0, easy: 0 } },
                 isAnimating: false,
                 viewedInSession: new Set(),
                 fontLevels: ['0.9rem', '1rem', '1.2rem', '1.4rem', '1.7rem', '2rem'],
@@ -1265,6 +1353,91 @@ const App = {
             App.UI.toast("Card reset to New");
         },
 
+        // 6. SHARE FLASHCARD (Generates Premium Image)
+        async shareCard(cardId) {
+            const card = this.session.deck.find(c => c.id === cardId);
+            if (!card) return;
+
+            App.UI.toast("Designing Flashcard... 🎨");
+
+            // 1. Process Text: Replace clozes with styled spans
+            const processedText = card.raw.replace(/\{\{c\d+::(.*?)\}\}/g, '<span class="export-cloze"> [... ? ...] </span>');
+
+            // 2. Context Info
+            const parent = App.State.feed.find(p => p.id === card.parentId);
+            const parentTitle = parent ? parent.title : 'General Knowledge';
+            const category = (card.category || 'Flashcard').toUpperCase();
+
+            // 3. Create Container
+            const exportContainer = document.createElement('div');
+            exportContainer.id = 'export-container-wrapper';
+            exportContainer.style.position = 'fixed';
+            exportContainer.style.left = '-9999px';
+            exportContainer.style.top = '0';
+            exportContainer.style.zIndex = '-9999';
+
+            exportContainer.innerHTML = `
+                <div class="flashcard-export-canvas" id="export-canvas-${cardId}">
+                    <div class="export-header-row">
+                        <span class="export-pill-category">${category}</span>
+                        <div class="export-watermark-logo">Civils<span>Kash</span><span class="tld">.in</span></div>
+                    </div>
+                    
+                    <div class="export-card-body">
+                        <div class="export-text-content">
+                            ${processedText}
+                        </div>
+                    </div>
+                    
+                    <div class="export-footer-row">
+                       <div class="export-meta-info">
+                            <span class="export-label">TOPIC</span>
+                            <span class="export-topic-title">${parentTitle}</span>
+                       </div>
+                       <div class="export-app-badge">
+                            <span>Answer this?</span>
+                       </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(exportContainer);
+
+            try {
+                const target = exportContainer.querySelector('.flashcard-export-canvas');
+                // Allow layout to settle
+                await new Promise(r => setTimeout(r, 100));
+
+                const canvas = await html2canvas(target, {
+                    scale: 2, // High resolution
+                    useCORS: true,
+                    backgroundColor: null,
+                });
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) throw new Error("Image generation failed");
+                    const fileName = `CivilsKash_Card_${Date.now()}.png`;
+                    const file = new File([blob], fileName, { type: "image/png" });
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file] });
+                    } else {
+                        const link = document.createElement('a');
+                        link.download = fileName;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                        App.UI.toast("Saved to Gallery 📸");
+                    }
+                    if (document.body.contains(exportContainer)) document.body.removeChild(exportContainer);
+                }, 'image/png');
+
+            } catch (e) {
+                console.error("Export Error:", e);
+                App.UI.toast("Export failed");
+                if (document.body.contains(exportContainer)) document.body.removeChild(exportContainer);
+            }
+        },
+
         // 6. RENDER ENGINE (With Capsules)
         _renderCard(animate = true) {
             const s = this.session;
@@ -1307,6 +1480,9 @@ const App = {
                                 <button class="capsule-reset-btn" onclick="event.stopPropagation(); App.Quiz.resetCard('${card.id}')" title="Reset Card">
                                     ↺
                                 </button>
+                                <button class="capsule-reset-btn" onclick="event.stopPropagation(); App.Quiz.shareCard('${card.id}')" title="Share Flashcard">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                </button>
                             </div>
                         </div>`;
             };
@@ -1329,8 +1505,8 @@ const App = {
                 if (s.mode === 'test' || s.mode === 'cram') {
                     footer.innerHTML = `
                                 <div class="srs-grid">
-                                    <button class="srs-btn srs-again" onclick="App.Quiz.rate('again', 0)"><span>Again</span><span>Fail</span></button>
-                                    <button class="srs-btn srs-hard" onclick="App.Quiz.rate('hard', 0.5)"><span>Hard</span><span>Tough</span></button>
+                                    <button class="srs-btn srs-again" onclick="App.Quiz.rate('again', 0.2)"><span>Again</span><span>Fail</span></button>
+                                    <button class="srs-btn srs-hard" onclick="App.Quiz.rate('hard', 0.6)"><span>Hard</span><span>Tough</span></button>
                                     <button class="srs-btn srs-good" onclick="App.Quiz.rate('good', 0.8)"><span>Good</span><span>Okay</span></button>
                                     <button class="srs-btn srs-easy" onclick="App.Quiz.rate('easy', 1.0)"><span>Easy</span><span>Perf</span></button>
                                 </div>`;
@@ -1381,6 +1557,11 @@ const App = {
 
             s.stats.score += points;
 
+            // Track Breakdown
+            if (s.stats.breakdown[status] !== undefined) {
+                s.stats.breakdown[status]++;
+            }
+
             // Save SRS Data
             const newData = { status: status, lastReview: Date.now(), parentId: card.parentId };
             App.State.srsData[card.id] = newData;
@@ -1414,53 +1595,204 @@ const App = {
         },
 
         // 8. SUMMARY & STREAK SAVE
-        _finishSession() {
+        async _finishSession() {
             const s = this.session;
 
-            // SAVE STREAK ON COMPLETION
+            // SAVE STREAK
             this.commitStreak();
 
             document.getElementById('quiz-progress-bar').style.width = '100%';
             const summaryContainer = document.getElementById('quiz-summary');
-            const scorePct = s.deck.length > 0 ? Math.round((s.stats.score / s.deck.length) * 100) : 0;
 
-            let contentHtml = '';
-            let title = "Session Complete";
-            let btnAction = "App.Quiz.startTest()";
-            let btnText = "New Session";
-
+            // --- MODE A: PRACTICE (Simple) ---
             if (s.mode === 'practice') {
-                title = "Queue Updated";
-                btnAction = "App.Quiz.startPractice()";
-                btnText = "Next Batch";
-            }
-            if (s.mode === 'cram') {
-                title = "Cram Finished";
-                btnAction = "App.Quiz.startCram()";
-                btnText = "Cram More";
+                const title = "Queue Updated";
+                const btnAction = "App.Quiz.startPractice()";
+                const btnText = "Next Batch";
+
+                summaryContainer.innerHTML = `
+                        <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
+                            <div style="font-size:4rem; margin-bottom:10px;">🔥</div>
+                            <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">${title}</h2>
+                            <div style="font-size:1rem; color:var(--primary); margin-bottom:15px; font-weight:bold;">Streak Saved!</div>
+                            <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">You reviewed ${s.deck.length} cards.</p>
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+                                <button class="btn-large btn-primary" onclick="${btnAction}"><span>${btnText}</span> <span>↻</span></button>
+                                <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">Return to Feed</button>
+                            </div>
+                        </div>`;
+                summaryContainer.classList.add('visible');
+                return;
             }
 
-            // Dynamic Fire for Summary
-            contentHtml = `
-                    <div style="text-align:center; width:100%; max-width:350px; animation: fadeInUp 0.5s ease;">
-                        <div style="font-size:4rem; margin-bottom:10px;">🔥</div>
-                        <h2 style="font-size:2rem; font-weight:800; margin-bottom:5px;">${title}</h2>
-                        <div style="font-size:1rem; color:var(--primary); margin-bottom:15px; font-weight:bold;">Streak Saved!</div>
-                        
-                        <p style="color:var(--text-muted); margin-bottom:30px; line-height:1.5;">You reviewed ${s.deck.length} cards.</p>
-                        
-                        <div style="display:flex; flex-direction:column; gap:12px;">
-                            <button class="btn-large btn-primary" onclick="${btnAction}">
-                                <span>${btnText}</span> <span>↻</span>
-                            </button>
-                            <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
-                                Return to Feed
-                            </button>
+            // --- MODE B: TEST / CRAM (Detailed Report Card) ---
+
+            // 1. Calculate Score
+            // Max Possible = deck.length * 1.0
+            // Actual = stats.score
+            // To normalise to 0-10 scale: (Actual / Max) * 10
+            let rawScore = 0;
+            if (s.deck.length > 0) {
+                rawScore = (s.stats.score / s.deck.length) * 10;
+            }
+            // Clamp 0-10
+            const finalScore = Math.min(Math.max(rawScore, 0), 10).toFixed(1);
+
+            // 2. Save History & Get Graph Data
+            await this.saveSessionScore(parseFloat(finalScore));
+            const historyData = await this.getPast30DaysData();
+
+            // 3. Prepare UI Elements
+            const gradeInfo = this._getGrade(finalScore);
+            const chartSVG = this._renderProgressChart(historyData);
+
+            const btnAction = s.mode === 'cram' ? "App.Quiz.startCram()" : "App.Quiz.startTest()";
+            const btnText = "New Session";
+            const title = s.mode === 'cram' ? "Cram Session" : "Daily Mastery";
+
+            const html = `
+                <div class="result-card" style="width:100%; max-width:600px; padding:35px 30px; animation: fadeInUp 0.5s ease;">
+                    
+                    <!-- Header -->
+                    <div style="text-align:center; margin-bottom:30px;">
+                        <h2 style="font-size:1.6rem; font-weight:800; color:var(--text-main); margin-bottom:4px;">${title}</h2>
+                        <div style="font-size:0.85rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:2px;">Session Complete</div>
+                    </div>
+
+                    <!-- Score Display (Horizontal: Score + Grade Pill) -->
+                    <div style="display:flex; justify-content:center; align-items:center; gap:20px; margin-bottom:35px; flex-wrap:wrap;">
+                        <div style="text-align:center;">
+                            <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Your Score</div>
+                            <div style="font-size:3.5rem; font-weight:900; line-height:1; color:var(--text-main);">${finalScore}<span style="font-size:1.5rem; color:var(--text-muted); font-weight:400;">/10</span></div>
                         </div>
-                    </div>`;
+                        <div class="grade-pill ${gradeInfo.class}" style="box-shadow:0 6px 20px rgba(0,0,0,0.3); font-size:1rem; padding:10px 24px;">
+                            ${gradeInfo.label}
+                        </div>
+                    </div>
 
-            summaryContainer.innerHTML = contentHtml;
+                    <!-- Quick Stats (Clean Icons + Numbers) -->
+                    <div style="display:flex; justify-content:center; gap:25px; margin-bottom:30px; flex-wrap:wrap;">
+                        <div style="text-align:center;">
+                            <div style="font-size:1.8rem; font-weight:800; color:#10b981;">${s.stats.breakdown.easy}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Easy</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:1.8rem; font-weight:800; color:#3b82f6;">${s.stats.breakdown.good}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Good</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:1.8rem; font-weight:800; color:#f59e0b;">${s.stats.breakdown.hard}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Hard</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:1.8rem; font-weight:800; color:#ef4444;">${s.stats.breakdown.again}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Again</div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Chart -->
+                    <div class="chart-container" style="margin-bottom:30px;">
+                        <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:1px;">Progress (Last 15 Days)</div>
+                        ${chartSVG}
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        <button class="btn-large btn-primary" onclick="${btnAction}">
+                            <span>${btnText}</span> <span>↻</span>
+                        </button>
+                        <button class="btn-large btn-outline" style="border:none; color:var(--text-muted);" onclick="App.Quiz.exit()">
+                            Return to Feed
+                        </button>
+                    </div>
+
+                </div>
+            `;
+
+            summaryContainer.innerHTML = html;
             summaryContainer.classList.add('visible');
+        },
+
+        // --- HELPER: SAVE SCORE ---
+        async saveSessionScore(score) {
+            const today = new Date().toISOString().split('T')[0];
+            let history = await App.DB.get('settings', 'quizHistory') || []; // Array of {date, avgScore, count}
+
+            // Find today's entry
+            let entryIndex = history.findIndex(h => h.date === today);
+
+            if (entryIndex >= 0) {
+                // Update Average
+                const e = history[entryIndex];
+                const newTotal = (e.avgScore * e.count) + score;
+                e.count++;
+                e.avgScore = newTotal / e.count;
+            } else {
+                // New Day
+                history.push({ date: today, avgScore: score, count: 1 });
+            }
+
+            // Prune > 15 Days (keep last 15)
+            if (history.length > 15) {
+                history = history.slice(history.length - 15);
+            }
+
+            await App.DB.put('settings', 'quizHistory', history);
+        },
+
+        async getPast30DaysData() {
+            let history = await App.DB.get('settings', 'quizHistory') || [];
+            // Sort by date just in case
+            history.sort((a, b) => new Date(a.date) - new Date(b.date));
+            return history;
+        },
+
+        // --- HELPER: GRADE ---
+        _getGrade(score) {
+            const s = parseFloat(score);
+            if (s >= 9.0) return { label: 'A+', class: 'grade-gold' };
+            if (s >= 8.0) return { label: 'A', class: 'grade-green' };
+            if (s >= 7.0) return { label: 'B+', class: 'grade-blue' };
+            if (s >= 6.0) return { label: 'B', class: 'grade-indigo' };
+            if (s >= 5.0) return { label: 'C', class: 'grade-orange' };
+            if (s >= 4.0) return { label: 'D', class: 'grade-burnt-orange' };
+            return { label: 'F', class: 'grade-red' };
+        },
+
+        // --- HELPER: BAR CHART (15 Days) ---
+        _renderProgressChart(data) {
+            if (!data || data.length < 1) {
+                return `<div style="height:80px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.8rem; background:rgba(255,255,255,0.05); border-radius:8px;">Complete a session to see progress</div>`;
+            }
+
+            // Take only last 15 days
+            const chartData = data.slice(-15);
+            const maxScore = 10;
+
+            // Generate bars HTML
+            const barsHTML = chartData.map((day, index) => {
+                const heightPercent = (day.avgScore / maxScore) * 100;
+                const score = day.avgScore.toFixed(1);
+                const delay = index * 50; // Stagger animation
+
+                return `
+                    <div class="chart-bar" 
+                         style="--bar-height: ${heightPercent}%; height: ${heightPercent}%; animation-delay: ${delay}ms;"
+                         data-score="${score}"
+                         title="${day.date}: ${score}/10">
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="bar-chart" id="performance-bars">
+                    ${barsHTML}
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.65rem; color:var(--text-muted);">
+                    <span>${chartData.length} day${chartData.length > 1 ? 's' : ''} ago</span>
+                    <span>Today</span>
+                </div>
+            `;
         },
 
         exit() {
@@ -1476,6 +1808,22 @@ const App = {
 
     // --- UI RENDERING ---
     UI: {
+        toggleHeaderMenu() {
+            const menu = document.getElementById('header-extras');
+            if (menu) {
+                menu.classList.toggle('active');
+                this.haptic(5);
+                if (menu.classList.contains('active')) {
+                    const closeHandler = (e) => {
+                        if (!e.target.closest('#header-extras') && !e.target.closest('#header-more-btn')) {
+                            menu.classList.remove('active');
+                            document.removeEventListener('click', closeHandler);
+                        }
+                    };
+                    setTimeout(() => document.addEventListener('click', closeHandler), 10);
+                }
+            }
+        },
 
         haptic(pattern = 5) {
             // Only works on Android/supported browsers
@@ -1506,6 +1854,23 @@ const App = {
                 }, 50);
             }
 
+            // Note Modal: Initialize selection toolbar and reset title
+            if (id === 'modal-create-card') {
+                const modalTitle = document.getElementById('note-modal-title');
+                if (modalTitle && !App.State.editingNoteId) {
+                    modalTitle.innerHTML = 'New Note 📝';
+                }
+                // Initialize selection toolbar and focus on title input
+                setTimeout(() => {
+                    if (App.UI.initSelectionToolbar) {
+                        App.UI.initSelectionToolbar();
+                    }
+                    // Auto-focus on title input for immediate typing
+                    const titleInput = document.getElementById('input-card-title');
+                    if (titleInput) titleInput.focus();
+                }, 100);
+            }
+
             el.style.display = 'flex';
             void el.offsetWidth; // Trigger reflow for animation
             el.classList.add('visible');
@@ -1522,12 +1887,60 @@ const App = {
             setTimeout(() => t.classList.remove('show'), 2500);
         },
 
+        // New Content Available toast
+        showNewContentToast() {
+            const existingToast = document.getElementById('new-content-toast');
+            if (existingToast) existingToast.remove(); // Remove if already exists
+
+            const toast = document.createElement('div');
+            toast.id = 'new-content-toast';
+            toast.className = 'new-content-toast';
+            toast.innerHTML = `
+                <span class="new-content-icon">✨</span>
+                <span class="new-content-text">New Feed Content</span>
+                <button class="new-content-btn" onclick="App.UI.applyPendingUpdate()">Refresh</button>
+                <button class="new-content-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+            document.body.appendChild(toast);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.add('visible');
+            });
+        },
+
+        applyPendingUpdate() {
+            if (App.State.pendingFeedUpdate) {
+                App.State.feed = App.Data.mergeStrategy(App.State.pendingFeedUpdate);
+                App.State.pendingFeedUpdate = null;
+                App.UI.renderFeed();
+                App.UI.toast("Feed Updated ⚡");
+
+                // Scroll to top smoothly
+                document.getElementById('app-container').scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // Remove the toast
+            const toast = document.getElementById('new-content-toast');
+            if (toast) toast.remove();
+        },
+
         renderCategoryChips() {
             const container = document.getElementById('category-chips-container');
             const categories = new Set(App.State.feed.map(i => i.category));
-            const sorted = Array.from(categories).sort();
+            let sorted = Array.from(categories).sort();
 
-            let html = `<div class="chip ${App.State.activeCategory === 'all' ? 'active' : ''}" onclick="App.Actions.setCategory('all')">All</div>`;
+            // "All" chip first - with special 3D styling
+            let html = `<div class="chip chip-special ${App.State.activeCategory === 'all' ? 'active' : ''}" onclick="App.Actions.setCategory('all')">All</div>`;
+
+            // "Curated" chip second - with special 3D styling
+            if (sorted.includes('Curated')) {
+                const isActive = App.State.activeCategory === 'Curated';
+                html += `<div class="chip chip-special ${isActive ? 'active' : ''}" onclick="App.Actions.setCategory('Curated')">Curated</div>`;
+                sorted = sorted.filter(c => c !== 'Curated');
+            }
+
+            // Rest of categories
             sorted.forEach(c => {
                 const isActive = App.State.activeCategory === c;
                 html += `<div class="chip ${isActive ? 'active' : ''}" onclick="App.Actions.setCategory('${c}')">${c}</div>`;
@@ -1540,7 +1953,12 @@ const App = {
             const categories = new Set(App.State.feed.map(i => i.category));
             let html = `<option value="bookmarks">Bookmarked Only</option>`;
 
-            categories.forEach(c => html += `<option value="${c}">${c}</option>`);
+            // Curated always second after Bookmarked
+            html += `<option value="Curated">📝 Curated Notes</option>`;
+
+            categories.forEach(c => {
+                if (c !== 'Curated') html += `<option value="${c}">${c}</option>`;
+            });
 
             html += `<option value="all">All Categories</option>`;
 
@@ -1555,7 +1973,6 @@ const App = {
             let allItems = App.State.feed; // Start with raw feed
 
             // --- APPLY FILTERS ---
-            // (Optimization: Only filter if necessary)
             if (App.State.activeDeepLink) {
                 allItems = allItems.filter(i => i.id === App.State.activeDeepLink);
                 if (allItems.length > 0) document.title = `${allItems[0].title} - CivilsKash`;
@@ -1576,15 +1993,13 @@ const App = {
 
             // 2. Handle Pagination Logic
             if (!appendMode) {
-                // Reset: User changed filter/search or refreshed
                 container.innerHTML = '';
                 App.State.feedPointer = App.State.batchSize; // Reset to initial batch
                 container.scrollTop = 0; // Jump to top
             }
 
             // 3. Slice Data for *Current View*
-            // If appending, we only want the *new* slice. 
-            // If resetting, we want 0 to batchSize.
+
             let itemsToRender;
 
             if (appendMode) {
@@ -1630,91 +2045,7 @@ const App = {
                 // Calculate absolute index for animations/logic
                 const globalIdx = appendMode ? (idx + (App.State.feedPointer - App.State.batchSize)) : idx;
 
-                const hasImg = item.image && item.image.trim() !== '';
-                const isLiked = App.State.bookmarks.has(item.id);
-                const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
-                const isVeryNew = (Date.now() - item.timestamp) < 86400000;
-                const badgeClass = isVeryNew ? 'badge badge-new' : 'badge';
-
-                // --- SMART HIGHLIGHTER HELPERS ---
-                // Reuse existing processSmartContent logic logic (duplicated here for now since it was internal)
-                // Note: ideally explicit function but inline works if concise. 
-                // We'll re-implement the helper here or assume it's accessible.
-                // Redefining for safety as scoping might have changed.
-
-                const processSmartContent = (rawText, query, isSummary) => {
-                    let workingText = rawText;
-                    const clozeStorage = [];
-                    const hiddenClass = isHidden ? 'is-hidden' : '';
-
-                    if (isSummary) {
-                        workingText = workingText.replace(/\{\{c\d+::(.*?)\}\}/g, (match, content) => {
-                            const clozeHtml = `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">${content}</span>`;
-                            clozeStorage.push(clozeHtml);
-                            return `__PROTECTED_CLOZE_${clozeStorage.length - 1}__`;
-                        });
-                    }
-                    if (query && query.length > 0) {
-                        const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const regex = new RegExp(`(${safeQuery})`, 'gi');
-                        workingText = workingText.replace(regex, '<span class="search-highlight">$1</span>');
-                    }
-                    if (isSummary) {
-                        clozeStorage.forEach((html, index) => {
-                            workingText = workingText.replace(`__PROTECTED_CLOZE_${index}__`, html);
-                        });
-                    }
-                    return workingText;
-                };
-
-                const finalTitle = processSmartContent(item.title, term, false);
-                const finalSummary = processSmartContent(item.summary, term, true);
-
-                // 🛠️ FIX: Force layout styles for Web/No-Img
-                // If layout is 'web', we ALWAYS want unset line-clamp.
-                // If layout is others, we check for image.
-                const isWebLayout = App.State.desktopLayout === 'web';
-
-                const summaryStyle = (isWebLayout || !hasImg)
-                    ? 'style="-webkit-line-clamp: unset; line-clamp: unset; max-height: none; display: block;"'
-                    : '';
-
-                htmlBuffer += `
-                <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${globalIdx}"
-                        ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
-                        ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
-                    
-                    <div class="watermark-overlay">Civils<span style="color:var(--primary)">Kash</span></div>
-                    <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
-
-                    <div class="scroll-content">
-                        ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
-                        
-                        <div class="card-body">
-                            <div class="meta-row">
-                                <span class="${badgeClass}" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
-                                <span class="date">${item.date || 'Recent'}</span>
-                            </div>
-                            <h2>${finalTitle}</h2>
-                            <p class="summary-box" ${summaryStyle}>${finalSummary}</p> </div>
-
-                        <div class="action-toolbar-container" onclick="event.stopPropagation()">
-                            <div class="action-toolbar">
-                                <button class="icon-btn" onclick="event.stopPropagation(); App.Actions.openShareMenu('${item.id}')" title="Share Options">
-                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                                </button>
-                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
-                                <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
-                                    ${eyeIcon}
-                                </button>
-                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
-                                <button class="icon-btn ${isLiked ? 'liked' : ''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
-                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </article>`;
+                htmlBuffer += this._createCardHTML(item, globalIdx);
             });
 
             // 5. Inject into DOM
@@ -1735,6 +2066,171 @@ const App = {
             }, 100);
 
             App.State.isLoadingMore = false; // Release lock
+        },
+
+        // --- HELPER: HTML GENERATOR (Shared by Render & Restore) ---
+        _createCardHTML(item, globalIdx) {
+            const term = document.getElementById('search-input') ? document.getElementById('search-input').value.trim() : '';
+            const isHidden = App.State.isGlobalHide;
+            const hasImg = item.image && item.image.trim() !== '';
+            const isLiked = App.State.bookmarks.has(item.id);
+            const eyeIcon = isHidden ? App.Icons.eyeClosed : App.Icons.eyeOpen;
+            const isVeryNew = (Date.now() - item.timestamp) < 86400000;
+            const badgeClass = isVeryNew ? 'badge badge-new' : 'badge';
+
+            const finalTitle = this._processSmartContent(item.title, term, false, isHidden);
+            const finalSummary = this._processSmartContent(item.summary, term, true, isHidden);
+
+            // Force layout styles for Web/No-Img
+            const isWebLayout = App.State.desktopLayout === 'web';
+            const summaryStyle = (isWebLayout || !hasImg)
+                ? 'style="-webkit-line-clamp: unset; line-clamp: unset; max-height: none; display: block;"'
+                : '';
+
+            return `
+                <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${globalIdx}"
+                        ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
+                        ontouchend="App.Actions.handleTouchHeart(event, '${item.id}')">
+                    
+                    <div class="watermark-overlay">Civils<span style="color:var(--primary)">Kash</span></div>
+                    <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
+
+                    <div class="scroll-content">
+                        ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
+                        
+                        <div class="card-body">
+                            <div class="meta-row">
+                                <span class="${badgeClass}" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
+                                <span class="date">${item.date || 'Recent'}</span>
+                            </div>
+                            <h2>${finalTitle}</h2>
+                            <p class="summary-box" ${summaryStyle}>${finalSummary}</p> </div>
+
+                        <div class="action-toolbar-container" onclick="event.stopPropagation()">
+                            <div class="action-toolbar ${item.isCurated ? 'curated-toolbar' : ''}">
+                                ${item.isCurated ? `
+                                <button class="icon-btn curated-edit-btn" onclick="event.stopPropagation(); App.Actions.editCuratedNote('${item.id}')" title="Edit Note">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </button>
+                                <button class="icon-btn curated-delete-btn" onclick="event.stopPropagation(); App.Actions.deleteCuratedNote('${item.id}')" title="Delete Note">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+                                ` : ''}
+                                <button class="icon-btn" onclick="event.stopPropagation(); App.Actions.openShareMenu('${item.id}')" title="Share Options">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                </button>
+                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+                                <button class="icon-btn local-eye-btn" id="hide-btn-${item.id}" onclick="App.Actions.toggleLocalHide('${item.id}')" title="Toggle Keywords">
+                                    ${eyeIcon}
+                                </button>
+                                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.1);"></div>
+                                <button class="icon-btn ${isLiked ? 'liked' : ''}" id="like-btn-${item.id}" onclick="App.Actions.toggleBookmark('${item.id}')" title="Bookmark">
+                                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </article>`;
+        },
+
+        _processSmartContent(rawText, query, isSummary, isHidden) {
+            let workingText = rawText;
+            const clozeStorage = [];
+            const hiddenClass = isHidden ? 'is-hidden' : '';
+
+            if (isSummary) {
+                workingText = workingText.replace(/\{\{c\d+::(.*?)\}\}/g, (match, content) => {
+                    const clozeHtml = `<span class="keyword ${hiddenClass}" onclick="event.stopPropagation(); App.Actions.toggleKeyword(this)">${content}</span>`;
+                    clozeStorage.push(clozeHtml);
+                    return `__PROTECTED_CLOZE_${clozeStorage.length - 1}__`;
+                });
+            }
+            if (query && query.length > 0) {
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeQuery})`, 'gi');
+                workingText = workingText.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+            if (isSummary) {
+                clozeStorage.forEach((html, index) => {
+                    workingText = workingText.replace(`__PROTECTED_CLOZE_${index}__`, html);
+                });
+            }
+            return workingText;
+        },
+
+        //Virtual Scroll - Recycle old cards to prevent memory leak
+        recycleOldCards() {
+            const container = document.getElementById('feed-list');
+            const cards = container.querySelectorAll('.news-card, .placeholder-card');
+            const maxCards = App.State.maxDomCards;
+
+            // Only recycle if we're over the limit
+            if (cards.length <= maxCards) return;
+
+            const toRemove = cards.length - maxCards;
+
+            for (let i = 0; i < toRemove; i++) {
+                const card = cards[i];
+                if (card && card.classList.contains('news-card')) {
+                    const cardHeight = card.offsetHeight;
+
+                    // Create a lightweight placeholder
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'placeholder-card';
+                    placeholder.style.height = `${cardHeight}px`;
+                    placeholder.dataset.originalId = card.id;
+                    placeholder.dataset.recycledIndex = App.State.virtualScrollOffset + i;
+
+                    // Replace the card with placeholder
+                    container.replaceChild(placeholder, card);
+                }
+            }
+
+            App.State.virtualScrollOffset += toRemove;
+        },
+
+        // Restore Recycled Cards - Rehydrate placeholders when notified
+        restoreRecycledCards() {
+            const container = document.getElementById('feed-list');
+            const placeholders = container.querySelectorAll('.placeholder-card');
+            if (placeholders.length === 0) return;
+
+            const scrollContainer = document.getElementById('app-container');
+            const viewTop = scrollContainer.scrollTop;
+            const viewBottom = viewTop + scrollContainer.clientHeight;
+            // Buffer of 600px
+            const bufferTop = viewTop - 600;
+            const bufferBottom = viewBottom + 600;
+
+            placeholders.forEach(ph => {
+                const phTop = ph.offsetTop;
+                const phBottom = phTop + ph.offsetHeight;
+
+                // Check intersection with buffer
+                if (phBottom > bufferTop && phTop < bufferBottom) {
+                    // It is in view! Restore it.
+                    const originalId = ph.dataset.originalId;
+                    const item = App.State.feed.find(i => i.id === originalId);
+                    if (item) {
+                        const recycledIndex = parseInt(ph.dataset.recycledIndex || '0');
+                        const html = this._createCardHTML(item, recycledIndex);
+
+                        // Create temp node
+                        const temp = document.createElement('div');
+                        temp.innerHTML = html;
+                        const newCard = temp.firstElementChild;
+
+                        if (newCard) {
+                            container.replaceChild(newCard, ph);
+                            // Adjust virtual offset if we are restoring form top
+                            if (recycledIndex < App.State.virtualScrollOffset) {
+                                App.State.virtualScrollOffset--;
+                            }
+                        }
+                    }
+                }
+            });
         }
     },
 
@@ -1766,7 +2262,376 @@ const App = {
         }
     },
 
-    // --- INIT ENGINE 
+    // --- POPUP FLASHCARDS ENGINE ---
+    Notifications: {
+        timers: {
+            top60: null,
+            periodic5: null,
+            systemCheck: null
+        },
+        state: {
+            activeCard: null,
+            isVisible: false
+        },
+
+        init() {
+            // 1. Check Permissions for System Notifications
+            if ("Notification" in window) {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    setTimeout(() => {
+                        Notification.requestPermission().then(permission => {
+                            if (permission === "granted") {
+                                console.log("🔔 Notifications Granted");
+                                this.scheduleSystemNotification();
+                            }
+                        });
+                    }, 5000); // Ask nicely after 5s
+                } else if (Notification.permission === "granted") {
+                    this.scheduleSystemNotification();
+                }
+            }
+
+            // 2. Schedule In-App Notifications
+            this.startTimers();
+
+            // 3. Inject DOM if missing (just to be safe, though we rely on CSS/JS creating it dynamically)
+            if (!document.getElementById('flashcard-popup')) {
+                const div = document.createElement('div');
+                div.id = 'flashcard-popup';
+                div.className = 'flashcard-popup';
+                document.body.appendChild(div);
+            }
+        },
+
+        startTimers() {
+            // A. The "Reset/Refresh" Mimic (30s after open - updated per user request)
+            this.timers.top60 = setTimeout(() => {
+                this.showPopup();
+            }, 30000); // 30s
+
+            // B. The Periodic Popup (Every 5 mins - updated per user request)
+            this.timers.periodic5 = setInterval(() => {
+                this.showPopup();
+            }, 300000); // 5 mins
+        },
+        async getDueCard() {
+            // SMART ALGORITHM v3: Uses ATOMIC flashcards, same as Quiz
+
+            const srs = App.State.srsData || {};
+            const now = Date.now();
+
+            // Build atomic flashcards from feed (same logic as Quiz._createAtomicCards)
+            const allAtomicCards = [];
+            App.State.feed.forEach((item, idx) => {
+                if (!item.summary) return;
+                const chunks = item.summary.split(/<br\s*\/?>/i);
+
+                chunks.forEach((chunk) => {
+                    if (chunk.includes('{{c')) {
+                        // Generate content hash for stable ID
+                        let hash = 0;
+                        const cleanText = chunk.replace(/\s+/g, '').toLowerCase();
+                        for (let i = 0; i < cleanText.length; i++) {
+                            hash = ((hash << 5) - hash) + cleanText.charCodeAt(i);
+                            hash = hash & hash;
+                        }
+                        const contentHash = Math.abs(hash).toString(36);
+                        const subId = `${item.id}_h_${contentHash}`;
+
+                        const regex = /\{\{c\d+::(.*?)\}\}/g;
+                        allAtomicCards.push({
+                            id: subId,
+                            parentId: item.id,
+                            category: item.category,
+                            title: item.title,
+                            front: chunk.replace(regex, '<span class="cloze-blank">[ ...? ]</span>'),
+                            back: chunk.replace(regex, '<strong style="color:var(--primary);">$1</strong>'),
+                            raw: chunk
+                        });
+                    }
+                });
+            });
+
+            if (allAtomicCards.length === 0) return null;
+
+            // COOLDOWNS
+            const COOLDOWN_HARD = 60 * 60 * 1000;      // 1 hour
+            const COOLDOWN_REVIEW = 12 * 60 * 60 * 1000; // 12 hours
+
+            // Shuffle helper
+            const shuffle = (array) => {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            };
+
+            // Filter buckets using atomic card IDs
+            const hardCards = allAtomicCards.filter(c => {
+                const s = srs[c.id];
+                if (!s || (s.status !== 'hard' && s.status !== 'again')) return false;
+                return (now - (s.lastReview || 0)) > COOLDOWN_HARD;
+            });
+
+            const newCards = allAtomicCards.filter(c => !srs[c.id] || srs[c.id].status === 'new');
+
+            const reviewCards = allAtomicCards.filter(c => {
+                const s = srs[c.id];
+                if (!s || (s.status !== 'good' && s.status !== 'easy')) return false;
+                return (now - (s.lastReview || 0)) > COOLDOWN_REVIEW;
+            });
+
+            // Selection Strategy
+            if (hardCards.length > 0) {
+                if (newCards.length > 0 && Math.random() > 0.7) {
+                    return shuffle(newCards)[0];
+                }
+                return shuffle(hardCards)[0];
+            }
+
+            if (newCards.length > 0) {
+                return shuffle(newCards)[0];
+            }
+
+            if (reviewCards.length > 0) {
+                return shuffle(reviewCards)[0];
+            }
+
+            // Fallback: oldest reviewed
+            const reviewedCards = allAtomicCards.filter(c => srs[c.id]);
+            if (reviewedCards.length > 0) {
+                reviewedCards.sort((a, b) => {
+                    const timeA = srs[a.id].lastReview || 0;
+                    const timeB = srs[b.id].lastReview || 0;
+                    return timeA - timeB;
+                });
+                return reviewedCards[0];
+            }
+
+            return shuffle(allAtomicCards)[0];
+        },
+
+        async showPopup() {
+            if (this.state.isVisible) return;
+
+            // 4. QUIZ MODE CHECK (Don't disturb if user is already studying)
+            if (document.getElementById('quiz-fullscreen-layer') &&
+                document.getElementById('quiz-fullscreen-layer').classList.contains('active')) {
+                return;
+            }
+
+            const card = await this.getDueCard();
+            if (!card) return;
+
+            this.state.activeCard = card;
+
+            // Use pre-generated front/back from atomic card
+            const questionHtml = card.front;
+            const answerHtml = card.back;
+
+            const popup = document.getElementById('flashcard-popup');
+            if (!popup) return;
+
+            // MINIMALIST RENDER - Text Pill Actions (Premium & Compact)
+            popup.innerHTML = `
+                <!-- No Close Button -->
+                
+                <div id="popup-face-front" class="flashcard-popup-content" 
+                     style="cursor:pointer; padding-top:10px; transition:opacity 0.2s;"
+                     onclick="App.Notifications.flip()">
+                    <div style="opacity:0.95; line-height:1.6;">${questionHtml}</div>
+                </div>
+
+                <div id="popup-face-back" class="flashcard-popup-content" style="display:none; padding-top:10px;">
+                    <div style="opacity:0.95; line-height:1.6;">${answerHtml}</div>
+                </div>
+
+                <!-- Floating Pill Action Bar -->
+                <div id="popup-actions" class="flashcard-popup-actions" style="display:none;">
+                    <button class="flashcard-popup-btn btn-popup-hard" onclick="App.Notifications.rate('hard')">Hard</button>
+                    <button class="flashcard-popup-btn btn-popup-good" onclick="App.Notifications.rate('good')">Good</button>
+                    <button class="flashcard-popup-btn btn-popup-more" onclick="App.Notifications.more()">More</button>
+                    <button class="flashcard-popup-btn btn-popup-share" onclick="App.Notifications.shareCard()">Share</button>
+                </div>
+            `;
+
+            popup.classList.add('visible');
+            this.state.isVisible = true;
+            App.UI.haptic(10);
+        },
+
+        flip() {
+            const front = document.getElementById('popup-face-front');
+            const back = document.getElementById('popup-face-back');
+            const actions = document.getElementById('popup-actions');
+
+            if (front && back && actions) {
+                front.style.display = 'none';
+                back.style.display = 'block';
+                actions.style.display = 'flex';
+                App.UI.haptic(5);
+            }
+        },
+
+        more() {
+            this.close();
+            // Redirect to Cram Mode logic
+            if (App.Quiz) {
+                App.Quiz.startCram();
+            } else {
+                App.UI.toast("Opening Quiz... ⚡");
+            }
+        },
+
+        close() {
+            const popup = document.getElementById('flashcard-popup');
+            if (popup) popup.classList.remove('visible');
+            this.state.isVisible = false;
+        },
+
+        async rate(rating) {
+            const card = this.state.activeCard;
+            if (!card) return;
+
+            App.UI.haptic(rating === 'good' ? 5 : 20);
+
+            // Update SRS Data - Use ACTUAL status, not mapped
+            const now = Date.now();
+            const newData = {
+                status: rating, // 'hard' or 'good' - save as-is
+                lastReview: now,
+                parentId: card.parentId || card.id
+            };
+
+            App.State.srsData[card.id] = newData;
+            await App.DB.put('srs_data', null, { id: card.id, ...newData });
+
+            // Toast feedback
+            if (rating === 'good') App.UI.toast("Nice work! 🧠");
+            else App.UI.toast("Seemed Uff!");
+
+            this.close();
+        },
+
+        // Share flashcard as premium image
+        async shareCard() {
+            const card = this.state.activeCard;
+            if (!card) return;
+
+            App.UI.toast("Designing Flashcard... 🎨");
+
+            // 1. Process Text: Replace clozes with styled export format
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = card.summary;
+            let cleanText = tempDiv.innerText;
+            const processedText = cleanText.replace(/\{\{c\d+::(.*?)\}\}/g, '<span class="export-cloze"> [... ? ...] </span>');
+
+            // 2. Context Info
+            const category = (card.category || 'Flashcard').toUpperCase();
+            const parentTitle = card.title || 'General Knowledge';
+
+            // 3. Create Export Container
+            const exportContainer = document.createElement('div');
+            exportContainer.id = 'notification-export-wrapper';
+            exportContainer.style.cssText = 'position:fixed; left:-9999px; top:0; z-index:-9999;';
+
+            exportContainer.innerHTML = `
+                <div class="flashcard-export-canvas" id="notification-export-canvas">
+                    <div class="export-header-row">
+                        <span class="export-pill-category">${category}</span>
+                        <div class="export-watermark-logo">Civils<span>Kash</span><span class="tld">.in</span></div>
+                    </div>
+                    
+                    <div class="export-card-body">
+                        <div class="export-text-content">
+                            ${processedText}
+                        </div>
+                    </div>
+                    
+                    <div class="export-footer-row">
+                       <div class="export-meta-info">
+                            <span class="export-label">TOPIC</span>
+                            <span class="export-topic-title">${parentTitle}</span>
+                       </div>
+                       <div class="export-app-badge">
+                            <span>Answer this?</span>
+                       </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(exportContainer);
+
+            try {
+                const target = exportContainer.querySelector('.flashcard-export-canvas');
+                await new Promise(r => setTimeout(r, 100)); // Layout settle
+
+                const canvas = await html2canvas(target, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: null,
+                });
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) throw new Error("Image generation failed");
+                    const fileName = `CivilsKash_Flashcard_${Date.now()}.png`;
+                    const file = new File([blob], fileName, { type: "image/png" });
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file] });
+                    } else {
+                        const link = document.createElement('a');
+                        link.download = fileName;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                        App.UI.toast("Saved to Gallery 📸");
+                    }
+                    if (document.body.contains(exportContainer)) document.body.removeChild(exportContainer);
+                }, 'image/png');
+
+            } catch (e) {
+                console.error("Export Error:", e);
+                App.UI.toast("Export failed");
+                if (document.body.contains(exportContainer)) document.body.removeChild(exportContainer);
+            }
+
+            this.close();
+        },
+
+        // --- SYSTEM NOTIFICATION LOGIC ---
+        scheduleSystemNotification() {
+            // Check periodically
+            this.timers.systemCheck = setInterval(() => {
+                this.checkAndSendSystemNotify();
+            }, 3600000); // Check every hour
+        },
+
+        async checkAndSendSystemNotify() {
+            if (Notification.permission !== "granted") return;
+
+            const lastTime = parseInt(localStorage.getItem('last_sys_notify') || '0');
+            const now = Date.now();
+
+            if (now - lastTime > 21600000) { // 6 hours
+                const card = await this.getDueCard();
+                if (card) {
+                    const n = new Notification("Time to Revise! 🧠", {
+                        body: card.title + " - Do you remember this topic?",
+                        icon: "https://civilskash.in/icon-192.png",
+                        tag: "revision"
+                    });
+
+                    n.onclick = () => {
+                        window.focus();
+                        this.showPopup();
+                    };
+
+                    localStorage.setItem('last_sys_notify', now);
+                }
+            }
+        }
+    },
     async init() {
         try {
 
@@ -1780,16 +2645,26 @@ const App = {
             // 1. SYSTEM BOOT
             await this.DB.init();
             this.PTR.init();
+            this.Notifications.init();
 
             // 1.5 INFINITE SCROLL ENABLER
-            window.addEventListener('scroll', () => {
+            // IMPORTANT: Scroll happens on #app-container, NOT window
+            const scrollContainer = document.getElementById('app-container');
+            scrollContainer.addEventListener('scroll', () => {
                 // Throttle: Don't load if already loading or maxed out
-                if (App.State.isLoadingMore || App.State.feedPointer >= App.State.totalAvailable) return;
+                if (App.State.isLoadingMore || App.State.feedPointer >= App.State.totalAvailable) {
+                    // Still restore cards if scrolling up
+                    App.UI.restoreRecycledCards();
+                    return;
+                }
 
-                const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+                // Restore cards on scroll
+                App.UI.restoreRecycledCards();
 
-                // Trigger when user is 800px from bottom (approx 1-2 cards)
-                if (scrollTop + clientHeight >= scrollHeight - 800) {
+                const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+
+                // Trigger when user is 600px from bottom (approx 1-2 cards)
+                if (scrollTop + clientHeight >= scrollHeight - 600) {
                     App.State.isLoadingMore = true;
 
                     // Increment Pointer
@@ -1800,6 +2675,9 @@ const App = {
 
                     console.log(`🚀 Loading Batch... [${App.State.feedPointer}/${App.State.totalAvailable}]`);
                     App.UI.renderFeed(true); // TRUE = Append Mode
+
+                    //Virtual Scroll - Recycle old cards to prevent memory leak
+                    App.UI.recycleOldCards();
                 }
             }, { passive: true });
 
@@ -1822,7 +2700,23 @@ const App = {
             const storedBookmarks = await this.DB.get('bookmarks', 'ids');
             if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
 
-            // 4. LOAD LOCAL CONTENT
+            // 3.5 LOAD CURATED NOTES (User's own notes - protected from overwrites)
+            const storedCurated = await this.DB.getCuratedNotes();
+            if (storedCurated && storedCurated.length > 0) {
+                App.State.curatedNotes = storedCurated;
+                console.log(`📝 Loaded ${storedCurated.length} curated notes`);
+            }
+
+            // 3.6 HYDRATE SRS DATA (Fix: Load card statuses so they persist after refresh)
+            const srsRecords = await this.DB.getAll('srs_data');
+            if (srsRecords && srsRecords.length > 0) {
+                srsRecords.forEach(rec => {
+                    App.State.srsData[rec.id] = rec;
+                });
+                console.log(`🧠 Hydrated ${srsRecords.length} SRS records`);
+            }
+
+            // 4. LOAD LOCAL CONTENT (mergeStrategy will include curated notes)
             let localFeed = await App.Data.loadLocal();
             App.State.feed = localFeed;
             App.UI.populateExportSelect();
@@ -1906,14 +2800,12 @@ const App = {
                 App.UI.renderFeed();
                 this.hideLoader();
 
-                // Background Sync
+                // Background Sync - Store data instead of auto-refreshing
                 setTimeout(async () => {
                     const fresh = await App.Data.syncNetwork();
                     if (fresh) {
-                        // FIX: Use mergeStrategy to prevent Race Condition
-                        App.State.feed = App.Data.mergeStrategy(fresh);
-                        App.UI.renderFeed();
-                        App.UI.toast("Feed Updated ⚡");
+                        App.State.pendingFeedUpdate = fresh;
+                        App.UI.showNewContentToast();
                     }
                 }, 1000);
             }
@@ -1936,27 +2828,173 @@ const App = {
     }
 };
 
-// --- NEW: SHARE TARGET HANDLER ---
-// 1. Add the "Save" logic to your Actions module
+// --- CURATED NOTES HANDLER ---
 App.Actions.saveSharedNote = async function () {
-    const title = document.getElementById('input-card-title').value;
-    const body = document.getElementById('input-card-body').value;
+    const title = document.getElementById('input-card-title').value.trim();
+    const body = document.getElementById('input-card-body').value.trim();
+
     if (!title || !body) return App.UI.toast("Please add text first");
-    const newCard = {
-        id: 'shared_' + Date.now(),
-        category: 'Curated',
-        title: title,
-        summary: body,
-        date: 'Just Now',
-        image: '',
-        tags: ['Curated']
-    };
-    App.State.feed.unshift(newCard);
-    if (App.DB.isWorking) await App.DB.put('feed_cache', null, newCard);
+
+    const now = Date.now();
+    const dateStr = new Date(now).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+    const isEditing = App.State.editingNoteId !== null;
+
+    if (isEditing) {
+        const existingIdx = App.State.curatedNotes.findIndex(n => n.id === App.State.editingNoteId);
+        if (existingIdx !== -1) {
+            const updatedNote = {
+                ...App.State.curatedNotes[existingIdx],
+                title: title,
+                summary: body,
+                updatedAt: now
+            };
+            App.State.curatedNotes[existingIdx] = updatedNote;
+            await App.DB.saveCuratedNote(updatedNote);
+            App.UI.toast("Note Updated! ✏️");
+        }
+        App.State.editingNoteId = null;
+    } else {
+        // CREATE new note
+        const newCard = {
+            id: 'curated_' + now,
+            category: 'Curated',
+            title: title,
+            summary: body,
+            date: dateStr,
+            timestamp: now,
+            createdAt: now,
+            image: '',
+            tags: ['Curated'],
+            isCurated: true
+        };
+
+        App.State.curatedNotes.unshift(newCard);
+        await App.DB.saveCuratedNote(newCard);
+        App.UI.toast("Note Saved! ✅");
+    }
+
+    App.State.feed = App.Data.mergeStrategy(await App.DB.getAll('feed_cache'));
     App.UI.closeModals();
     App.UI.renderFeed();
-    App.UI.toast("Note Saved to Feed! ✅");
+
+    document.getElementById('input-card-title').value = '';
+    document.getElementById('input-card-body').value = '';
     window.history.replaceState({}, document.title, window.location.pathname);
+};
+
+// Edit a curated note - loads it into the modal
+App.Actions.editCuratedNote = function (id) {
+    const note = App.State.curatedNotes.find(n => n.id === id);
+    if (!note) return App.UI.toast("Note not found");
+
+    App.State.editingNoteId = id;
+
+    document.getElementById('input-card-title').value = note.title;
+    document.getElementById('input-card-body').value = note.summary;
+
+    const modalTitle = document.querySelector('#modal-create-card h2');
+    if (modalTitle) modalTitle.innerHTML = 'Edit Note ✏️';
+
+    App.UI.openModal('modal-create-card');
+};
+
+App.Actions.deleteCuratedNote = async function (id) {
+    const noteIdx = App.State.curatedNotes.findIndex(n => n.id === id);
+    if (noteIdx === -1) return;
+
+    const deletedNote = App.State.curatedNotes[noteIdx];
+
+    App.State.curatedNotes.splice(noteIdx, 1);
+    await App.DB.deleteCuratedNote(id);
+
+    App.State.feed = App.Data.mergeStrategy(await App.DB.getAll('feed_cache'));
+    App.UI.renderFeed();
+
+    App.UI.toast(`"${deletedNote.title.substring(0, 20)}..." deleted`);
+
+    App.State._lastDeletedNote = deletedNote;
+
+    setTimeout(() => {
+        if (App.State._lastDeletedNote && App.State._lastDeletedNote.id === id) {
+            App.State._lastDeletedNote = null;
+        }
+    }, 5000);
+};
+
+// --- TEXT SELECTION TOOLBAR HANDLERS ---
+App.Actions.wrapSelectionCloze = function () {
+    const textarea = document.getElementById('input-card-body');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+
+    if (!selectedText || selectedText.trim() === '') {
+        App.UI.toast("Select some text first");
+        return;
+    }
+
+    const wrapped = `{{c1::${selectedText}}}`;
+    textarea.value = textarea.value.substring(0, start) + wrapped + textarea.value.substring(end);
+
+    textarea.focus();
+    textarea.setSelectionRange(start + wrapped.length, start + wrapped.length);
+
+    document.getElementById('selection-toolbar').classList.remove('visible');
+    App.UI.toast("Flashcard cloze added ✨");
+};
+
+App.Actions.wrapSelectionBold = function () {
+    const textarea = document.getElementById('input-card-body');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+
+    if (!selectedText || selectedText.trim() === '') {
+        App.UI.toast("Select some text first");
+        return;
+    }
+
+    const wrapped = `<b>${selectedText}</b>`;
+    textarea.value = textarea.value.substring(0, start) + wrapped + textarea.value.substring(end);
+
+    textarea.focus();
+    textarea.setSelectionRange(start + wrapped.length, start + wrapped.length);
+
+    document.getElementById('selection-toolbar').classList.remove('visible');
+    App.UI.toast("Bold highlight added ✨");
+};
+
+// Initialize selection toolbar event listeners
+App.UI.initSelectionToolbar = function () {
+    const textarea = document.getElementById('input-card-body');
+    const toolbar = document.getElementById('selection-toolbar');
+
+    if (!textarea || !toolbar) return;
+
+    const handleSelection = (e) => {
+        const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+
+        if (selectedText && selectedText.trim().length > 0) {
+            toolbar.classList.add('visible');
+        } else {
+            toolbar.classList.remove('visible');
+        }
+    };
+
+    textarea.addEventListener('mouseup', handleSelection);
+    textarea.addEventListener('touchend', (e) => {
+        setTimeout(handleSelection, 100); // Delay for touch devices
+    });
+    textarea.addEventListener('keyup', (e) => {
+        if (e.shiftKey) handleSelection();
+    });
+
+    // Hide toolbar when clicking outside
+    document.addEventListener('mousedown', (e) => {
+        if (!toolbar.contains(e.target) && e.target !== textarea) {
+            toolbar.classList.remove('visible');
+        }
+    });
 };
 
 // 2. The function to check URL parameters on startup
@@ -1967,11 +3005,9 @@ function checkShareTarget() {
     const sharedUrl = params.get('share_url');
 
     if (sharedTitle || sharedText || sharedUrl) {
-        // Combine the text and URL cleanly
         let finalBody = sharedText || '';
         if (sharedUrl) finalBody += `\n\nSource: ${sharedUrl}`;
 
-        // Open the new modal
         App.UI.openModal('modal-create-card');
 
         // Fill the inputs (small delay to ensure modal is rendered)
@@ -1984,10 +3020,26 @@ function checkShareTarget() {
         }, 100);
     }
 }
-// Initialize App on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
     checkShareTarget();
+
+    // --- KEYBOARD SHORTCUTS FOR DESKTOP ---
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            App.UI.openModal('modal-categories');
+        }
+
+        if (e.key === 'Enter' && document.activeElement?.id === 'note-save-btn') {
+            e.preventDefault();
+            App.Actions.saveSharedNote();
+        }
+
+        if (e.key === 'Escape') {
+            App.UI.closeModals();
+        }
+    });
 });
 
 if ('serviceWorker' in navigator) {
