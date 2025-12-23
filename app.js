@@ -178,13 +178,15 @@ const App = {
         batchSize: 12,         // How many to load at a time (optimized for performance)
         totalAvailable: 0,     // Total items in memory
         isLoadingMore: false,  // Prevent double triggers
-        // ISSUE #2 FIX: Virtual Scroll State
         maxDomCards: 50,       // Maximum cards to keep in DOM
         virtualScrollOffset: 0, // Track how many cards have been recycled
         searchTerm: '',
         srsData: {},
         isDark: true,
         isGlobalHide: false,
+        // NEW SETTINGS
+        flashcardFreq: 5,      // Minutes
+        flashcardEnabled: true,
         quiz: { mode: null, deck: [], index: 0, currentScore: 0 },
         pendingFeedUpdate: null,  // NEW: Holds fresh data until user clicks refresh
         contentUrl: 'https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec',
@@ -2303,16 +2305,25 @@ const App = {
             }
         },
 
-        startTimers() {
-            // A. The "Reset/Refresh" Mimic (30s after open - updated per user request)
-            this.timers.top60 = setTimeout(() => {
-                this.showPopup();
-            }, 30000); // 30s
+        restartTimers() {
+            if (this.timers.top60) clearTimeout(this.timers.top60);
+            if (this.timers.periodic5) clearInterval(this.timers.periodic5);
+            this.startTimers();
+        },
 
-            // B. The Periodic Popup (Every 5 mins - updated per user request)
+        startTimers() {
+            if (!App.State.flashcardEnabled) return;
+
+            // A. The "Reset/Refresh" Mimic (30s after open)
+            this.timers.top60 = setTimeout(() => {
+                if (App.State.flashcardEnabled) this.showPopup();
+            }, 30000);
+
+            // B. The Periodic Popup (User defined interval)
+            const intervalMs = App.State.flashcardFreq * 60 * 1000;
             this.timers.periodic5 = setInterval(() => {
-                this.showPopup();
-            }, 300000); // 5 mins
+                if (App.State.flashcardEnabled) this.showPopup();
+            }, intervalMs);
         },
         async getDueCard() {
             // SMART ALGORITHM v3: Uses ATOMIC flashcards, same as Quiz
@@ -2523,7 +2534,8 @@ const App = {
 
             // 1. Process Text: Replace clozes with styled export format
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = card.summary;
+            // FIX: use card.raw because card.summary is undefined for atomic cards
+            tempDiv.innerHTML = card.raw || card.front;
             let cleanText = tempDiv.innerText;
             const processedText = cleanText.replace(/\{\{c\d+::(.*?)\}\}/g, '<span class="export-cloze"> [... ? ...] </span>');
 
@@ -2608,6 +2620,10 @@ const App = {
         },
 
         async checkAndSendSystemNotify() {
+            // FIX: Mobile Only Check
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+            if (!isMobile) return;
+
             if (Notification.permission !== "granted") return;
 
             const lastTime = parseInt(localStorage.getItem('last_sys_notify') || '0');
@@ -2699,6 +2715,27 @@ const App = {
 
             const storedBookmarks = await this.DB.get('bookmarks', 'ids');
             if (storedBookmarks) App.State.bookmarks = new Set(storedBookmarks);
+
+            // 2.5 RESTORE FLASHCARD SETTINGS
+            const savedFreq = await this.DB.get('settings', 'flashcardFreq');
+            if (savedFreq) {
+                App.State.flashcardFreq = parseInt(savedFreq);
+                const freqSelect = document.getElementById('flashcard-freq-select');
+                if (freqSelect) freqSelect.value = savedFreq;
+            } else {
+                // Default to State value (5 min) if no save found
+                const freqSelect = document.getElementById('flashcard-freq-select');
+                if (freqSelect) freqSelect.value = App.State.flashcardFreq;
+            }
+
+            const savedToggle = await this.DB.get('settings', 'flashcardEnabled');
+            if (savedToggle !== null && savedToggle !== undefined) {
+                App.State.flashcardEnabled = savedToggle;
+                const toggle = document.getElementById('flashcard-toggle');
+                if (toggle) toggle.checked = savedToggle;
+            }
+            // Retrigger timers with loaded settings
+            App.Notifications.restartTimers();
 
             // 3.5 LOAD CURATED NOTES (User's own notes - protected from overwrites)
             const storedCurated = await this.DB.getCuratedNotes();
@@ -2810,6 +2847,20 @@ const App = {
                 }, 1000);
             }
 
+            // --- SECRET FEATURE TRIGGER (SFI Double Click) ---
+            const sfiBtn = document.getElementById('flashcard-btn');
+            if (sfiBtn) {
+                sfiBtn.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    if (App.Annotate.isActive) {
+                        App.Annotate.deactivate();
+                    } else {
+                        if (App.Notifications) App.Notifications.close();
+                        App.Annotate.activate();
+                    }
+                });
+            }
+
         } catch (err) {
             console.error("Critical Init Error", err);
             App.State.feed = App.Data.getHardcodedData();
@@ -2826,6 +2877,23 @@ const App = {
             setTimeout(() => loader.style.display = 'none', 500);
         }
     }
+};
+
+// --- SETTINGS ACTIONS ---
+App.Actions.setFlashcardFrequency = async function (val) {
+    const mins = parseInt(val);
+    App.State.flashcardFreq = mins;
+    await App.DB.put('settings', 'flashcardFreq', mins);
+    App.Notifications.restartTimers();
+    App.UI.toast(`Popup frequency: ${mins} mins`);
+};
+
+App.Actions.toggleFlashcards = async function (isEnabled) {
+    App.State.flashcardEnabled = isEnabled;
+    await App.DB.put('settings', 'flashcardEnabled', isEnabled);
+    App.Notifications.restartTimers();
+    const msg = isEnabled ? "Popups Enabled ✅" : "Popups Paused ⏸️";
+    App.UI.toast(msg);
 };
 
 // --- CURATED NOTES HANDLER ---
@@ -3049,3 +3117,295 @@ if ('serviceWorker' in navigator) {
             .catch((err) => console.log('Service Worker failed:', err));
     });
 }
+
+// --- ANNOTATION MODULE (Laser Tools) ---
+App.Annotate = {
+    pCanvas: null,      // Preview markings (global fixed)
+    pCtx: null,
+    toolbar: null,
+    isActive: false,
+    mode: 'rect',     // ['select', 'pen', 'rect', 'eraser']
+    isDrawing: false,
+    startX: 0,
+    startY: 0,
+    currentPath: [],
+    colorIndex: 0,
+    palettes: [
+        { name: 'Cosmic Purple', color: '#a855f7', core: '#faf5ff' },
+        { name: 'Electric Blue', color: '#2563eb', core: '#eff6ff' },
+        { name: 'Cyan Breeze', color: '#06b6d4', core: '#ecfeff' },
+        { name: 'Emerald Mint', color: '#10b981', core: '#f0fdf4' },
+        { name: 'Solar Yellow', color: '#eab308', core: '#fefce8' },
+        { name: 'Deep Orange', color: '#ea580c', core: '#fff7ed' },
+        { name: 'Ruby Crimson', color: '#dc2626', core: '#fef2f2' },
+        { name: 'Hot Magenta', color: '#d946ef', core: '#fdf4ff' }
+    ],
+    activeCard: null,
+    activeScrollContent: null,
+
+    init() {
+        if (this.pCanvas) return;
+
+        this.pCanvas = document.createElement('canvas');
+        this.pCanvas.id = 'annotation-canvas-overlay';
+        this.pCanvas.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:99999; pointer-events:none; cursor:default; background:transparent;";
+        this.pCtx = this.pCanvas.getContext('2d');
+
+        this.toolbar = document.createElement('div');
+        this.toolbar.className = 'laser-toolbar';
+        this.updateToolbarHTML();
+
+        this.bindEvents();
+        window.addEventListener('resize', () => this.resize());
+    },
+
+    updateToolbarHTML() {
+        const p = this.palettes[this.colorIndex];
+        this.toolbar.innerHTML = `
+            <button class="laser-btn ${this.mode === 'select' ? 'active' : ''}" onclick="App.Annotate.setTool('select')" title="Select & Scroll">
+                <svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+            </button>
+            <button class="laser-btn ${this.mode === 'pen' ? 'active' : ''}" onclick="App.Annotate.setTool('pen')" title="Pen Tool">
+                <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+            </button>
+            <button class="laser-btn ${this.mode === 'rect' ? 'active' : ''}" onclick="App.Annotate.setTool('rect')" title="Rectangle Tool">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            </button>
+            <button class="laser-btn laser-btn-eraser ${this.mode === 'eraser' ? 'active' : ''}" onclick="App.Annotate.setTool('eraser')" title="Eraser Tool">
+                <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l4.3 4.3c1 1 1 2.5 0 3.4L10.5 21z"/><path d="m15 5 4.3 4.3"/></svg>
+            </button>
+            <button class="laser-btn laser-btn-color" onclick="App.Annotate.cycleColor()" title="Color: ${p.name}" style="background:${p.color}; box-shadow: 0 0 8px ${p.color};">
+            </button>
+            <button class="laser-btn laser-btn-clear" onclick="App.Annotate.clear()" title="Clear All Decorations">
+                <svg viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            <button class="laser-btn laser-btn-close" onclick="App.Annotate.deactivate()" title="Close Laser">
+                <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        `;
+    },
+
+    bindEvents() {
+        const pc = this.pCanvas;
+        const start = (e) => this.startDrawing(e.touches ? e.touches[0] : e);
+        const move = (e) => this.draw(e.touches ? e.touches[0] : e);
+        const end = (e) => this.stopDrawing(e.touches ? e.changedTouches[0] : e);
+
+        pc.addEventListener('mousedown', start, { passive: false });
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+
+        pc.addEventListener('touchstart', (e) => { if (this.mode !== 'select') { e.preventDefault(); start(e.touches[0]); } }, { passive: false });
+        pc.addEventListener('touchmove', (e) => { if (this.mode !== 'select') { e.preventDefault(); move(e.touches[0]); } }, { passive: false });
+        pc.addEventListener('touchend', (e) => { if (this.mode !== 'select') end(e.changedTouches[0]); });
+    },
+
+    resize() {
+        if (!this.pCanvas) return;
+        this.pCanvas.width = window.innerWidth;
+        this.pCanvas.height = window.innerHeight;
+    },
+
+    activate() {
+        this.init();
+        this.resize();
+        document.body.appendChild(this.pCanvas);
+        document.body.appendChild(this.toolbar);
+        this.isActive = true;
+        this.setTool('rect'); // Default to Rectangle as requested
+        if (App.Notifications) App.Notifications.close();
+        App.UI.haptic(20);
+    },
+
+    clear() {
+        // Clear global preview
+        if (this.pCtx) this.pCtx.clearRect(0, 0, this.pCanvas.width, this.pCanvas.height);
+        // Remove all local persistent canvases
+        document.querySelectorAll('.annotation-layer-local').forEach(c => c.remove());
+        App.UI.toast("All Annotations Wiped 🧹");
+        App.UI.haptic(10);
+    },
+
+    deactivate() {
+        if (this.pCanvas?.parentNode) document.body.removeChild(this.pCanvas);
+        if (this.toolbar?.parentNode) document.body.removeChild(this.toolbar);
+        this.isActive = false;
+        App.UI.toggleGlobalHide(false);
+    },
+
+    setTool(mode) {
+        this.mode = mode;
+        this.updateToolbarHTML();
+
+        if (mode === 'select') {
+            this.pCanvas.style.pointerEvents = 'none';
+        } else {
+            this.pCanvas.style.pointerEvents = 'auto';
+        }
+        App.UI.haptic(5);
+    },
+
+    toggleDrawingTool() {
+        if (this.mode === 'pen') this.setTool('rect');
+        else this.setTool('pen');
+    },
+
+    cycleColor() {
+        this.colorIndex = (this.colorIndex + 1) % this.palettes.length;
+        const p = this.palettes[this.colorIndex];
+        document.documentElement.style.setProperty('--laser-color', p.color);
+        document.documentElement.style.setProperty('--laser-core', p.core);
+        App.UI.haptic(10);
+        this.updateToolbarHTML(); // Sync circular button color
+    },
+
+    getStyles() {
+        const p = this.palettes[this.colorIndex];
+        return { color: p.color, thick: this.mode === 'eraser' ? 50 : 1.8, core: p.core };
+    },
+
+    // --- PREMIUM CARVING ENGINE (v5.3 Eraser Optimized) ---
+    drawLaser(context, type, x, y, w, h, isLocal = false) {
+        if (this.mode === 'eraser') {
+            context.save();
+            context.globalCompositeOperation = 'destination-out';
+            const renderingPath = isLocal ? this._getLocalPath() : this.currentPath;
+            context.lineWidth = 60; // Larger eraser for faster clearing
+            context.lineJoin = 'round';
+            context.lineCap = 'round';
+            this.renderShape(context, 'pen', 0, 0, 0, 0, renderingPath);
+            context.restore();
+            return;
+        }
+
+        const { color, thick, core } = this.getStyles();
+        const renderingPath = isLocal ? this._getLocalPath() : this.currentPath;
+
+        const layer = (ctx, strokeColor, lineWidth, alpha, blur, shadowColor, offset = 0) => {
+            ctx.save();
+            ctx.shadowBlur = blur;
+            ctx.shadowColor = shadowColor || strokeColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = lineWidth;
+            ctx.globalAlpha = alpha;
+            this.renderShape(ctx, type, x + offset, y + offset, w, h, renderingPath);
+            ctx.restore();
+        };
+
+        // 1. DEPTH
+        layer(context, "rgba(0,0,0,0.15)", thick * 2.2, 1.0, 0, null, 0.8);
+        // 2. GLOW
+        layer(context, color, thick * 2, 0.45, 12, color);
+        // 3. CORE
+        layer(context, core, thick * 0.65, 1.0, 4, color);
+    },
+
+    _getLocalPath() {
+        if (!this.activeScrollContent) return this.currentPath;
+        const rect = this.activeScrollContent.getBoundingClientRect();
+        const scrollT = this.activeScrollContent.scrollTop;
+        const scrollL = this.activeScrollContent.scrollLeft;
+
+        return this.currentPath.map(p => ({
+            x: p.x - rect.left + scrollL,
+            y: p.y - rect.top + scrollT
+        }));
+    },
+
+    renderShape(ctx, type, x, y, w, h, path) {
+        ctx.beginPath();
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        if (type === 'pen') {
+            if (!path || path.length < 2) return;
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        } else {
+            ctx.strokeRect(x, y, w, h);
+        }
+        ctx.stroke();
+    },
+
+    getCardCanvas(scrollContent) {
+        let canvas = scrollContent.querySelector('.annotation-layer-local');
+        const sW = scrollContent.scrollWidth;
+        const sH = scrollContent.scrollHeight;
+
+        if (!canvas) {
+            canvas = document.createElement('canvas');
+            canvas.className = 'annotation-layer-local';
+            scrollContent.appendChild(canvas);
+        }
+
+        // Always sync resolution and style size to scrollable area
+        if (canvas.width !== sW || canvas.height !== sH) {
+            canvas.width = sW;
+            canvas.height = sH;
+            canvas.style.width = sW + 'px';
+            canvas.style.height = sH + 'px';
+        }
+        return canvas;
+    },
+
+    startDrawing(e) {
+        if (this.mode === 'select') return;
+
+        // --- FIX: Pointer-Event Bypass for Detection ---
+        this.pCanvas.style.pointerEvents = 'none';
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        this.pCanvas.style.pointerEvents = 'auto';
+
+        const card = el ? el.closest('.news-card') : null;
+        if (!card) return;
+
+        this.activeCard = card;
+        this.activeScrollContent = card.querySelector('.scroll-content');
+        if (!this.activeScrollContent) return;
+
+        this.isDrawing = true;
+        this.startX = e.clientX;
+        this.startY = e.clientY;
+        this.currentPath = [{ x: this.startX, y: this.startY }];
+    },
+
+    draw(e) {
+        if (!this.isDrawing) return;
+        this.currentPath.push({ x: e.clientX, y: e.clientY });
+        this.pCtx.clearRect(0, 0, this.pCanvas.width, this.pCanvas.height);
+
+        if (this.mode === 'pen' || this.mode === 'eraser') {
+            this.drawLaser(this.pCtx, 'pen', 0, 0, 0, 0);
+        } else if (this.mode === 'rect') {
+            this.drawLaser(this.pCtx, 'rect', this.startX, this.startY, e.clientX - this.startX, e.clientY - this.startY);
+        }
+    },
+
+    stopDrawing(e) {
+        if (!this.isDrawing) return;
+        const finalX = (e && e.clientX) || this.startX;
+        const finalY = (e && e.clientY) || this.startY;
+
+        if (this.activeScrollContent) {
+            const canvas = this.getCardCanvas(this.activeScrollContent);
+            const ctx = canvas.getContext('2d');
+            const rect = this.activeScrollContent.getBoundingClientRect();
+            const sT = this.activeScrollContent.scrollTop;
+            const sL = this.activeScrollContent.scrollLeft;
+
+            if (this.mode === 'pen' || this.mode === 'eraser') {
+                this.currentPath.push({ x: finalX, y: finalY });
+                this.drawLaser(ctx, 'pen', 0, 0, 0, 0, true);
+            } else if (this.mode === 'rect') {
+                const localX = this.startX - rect.left + sL;
+                const localY = this.startY - rect.top + sT;
+                this.drawLaser(ctx, 'rect', localX, localY, finalX - this.startX, finalY - this.startY, true);
+            }
+        }
+
+        this.pCtx.clearRect(0, 0, this.pCanvas.width, this.pCanvas.height);
+        this.isDrawing = false;
+        this.currentPath = [];
+        this.activeCard = null;
+        this.activeScrollContent = null;
+    }
+};
