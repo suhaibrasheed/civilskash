@@ -69,7 +69,6 @@
     <header>
         <h1 class="brand" onclick="App.Actions.goHome()">Civils<span>Kash</span></h1>
         <div class="header-actions">
-            <!-- Core Icons (Always Visible) -->
             <button class="icon-btn" id="category-btn" onclick="App.UI.openModal('modal-categories')"
                 title="Filter Categories">
                 <svg viewBox="0 0 24 24">
@@ -94,17 +93,15 @@
                 </svg>
             </button>
 
-            <!-- Flashcard Button (Always Visible - moved from dropdown) -->
-            <button class="icon-btn" id="flashcard-btn" onclick="App.Notifications.showPopup()" title="Show Flashcard">
+            <button class="icon-btn" id="flashcard-btn" onclick="App.Notifications.showPopup()"
+                title="Flashcard (Annotate)">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
                     <rect x="4" y="4" width="16" height="16" rx="2" stroke-linecap="round" stroke-linejoin="round" />
                     <path d="M9 9h6m-6 4h6m-6 4h4" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
             </button>
 
-            <!-- Menu Extras (Desktop: Inline, Mobile: Dropdown) -->
             <div id="header-extras" class="header-extras">
-                <!-- Sync moved here from main bar -->
                 <button class="icon-btn" id="sync-btn" onclick="App.Actions.triggerSync()"
                     title="Check for Latest Feed">
                     <svg viewBox="0 0 24 24">
@@ -130,7 +127,6 @@
                 </button>
             </div>
 
-            <!-- Mobile Menu Toggle -->
             <button id="header-more-btn" class="icon-btn header-menu-toggle" onclick="App.UI.toggleHeaderMenu()"
                 title="More Options">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
@@ -357,10 +353,34 @@
 
             <div class="setting-row">
                 <div>
+                    <span class="setting-label">Flashcard Popup</span>
+                    <span class="setting-sub">Quick revision popups</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <select id="flashcard-freq-select" onchange="App.Actions.setFlashcardFrequency(this.value)"
+                        style="min-width: 100px; padding: 6px; border-radius: 8px; border: 1px solid var(--border-glass); background: var(--bg-elevated); color: var(--text-main); font-weight: bold;">
+                        <option value="2">2 Mins</option>
+                        <option value="3">3 Mins</option>
+                        <option value="5">5 Mins</option>
+                        <option value="10">10 Mins</option>
+                        <option value="15">15 Mins</option>
+                        <option value="30">30 Mins</option>
+                        <option value="60">60 Mins</option>
+                    </select>
+                    <label class="switch-wrapper" style="display:flex; align-items:center; cursor:pointer;"
+                        title="Toggle Flashcards">
+                        <input type="checkbox" id="flashcard-toggle" class="custom-toggle" checked
+                            onchange="App.Actions.toggleFlashcards(this.checked)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div>
                     <span class="setting-label">CivilKash Update</span>
                     <span class="setting-sub">Move to latest version of App</span>
                 </div>
-                <button class="btn-small btn-outline" style="border-color:var(--red); color:var(--red);"
+                <button class="btn-small btn-outline" style="color:var(--red); border-color:var(--red);"
                     onclick="App.UI.openModal('modal-force-update')">
                     Install Version
                 </button>
@@ -380,16 +400,16 @@
                     <span class="setting-sub">Save your notes & flashcards to NoteKash App</span>
                 </div>
             </div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <select id="export-category-select" style="flex:1;">
+            <div style="display:flex; gap:12px; margin-top:12px; align-items: stretch;">
+                <select id="export-category-select" style="flex:1; padding-left: 12px;">
                     <option value="all">All Categories</option>
                     <option value="bookmarks">Bookmarked Only</option>
                 </select>
-                <button class="btn-primary"
-                    style="padding:8px 16px; border-radius:8px; border:none; font-weight:700; cursor:pointer;"
+                <button class="btn-primary" style="padding: 0 24px; min-width: 100px; flex-shrink: 0;"
                     onclick="App.Export.download()">Export</button>
             </div>
-            <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:20px;">Close</button>
+            <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:24px;">Close
+                Settings</button>
         </div>
     </div>
 
@@ -403,7 +423,7 @@
             <div style="display:flex; gap:15px;">
                 <button class="btn-large btn-outline" onclick="App.UI.closeModals()">Cancel</button>
                 <button class="btn-large btn-primary"
-                    style="background:var(--red); color:white; border:none; box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);"
+                    style="background:var(--red); color:white; border-bottom-color: #991b1b;"
                     onclick="App.System.executeHardRefresh()">
                     Yes, Update
                 </button>
@@ -432,7 +452,6 @@
                 <textarea id="input-card-body" class="note-textarea" rows="8"
                     placeholder="Write your note here ... (Tab to navigate)" tabindex="2"></textarea>
 
-                <!-- Selection Toolbar (Hidden by default, positioned dynamically) -->
                 <div id="selection-toolbar" class="selection-toolbar">
                     <button class="selection-btn" onclick="App.Actions.wrapSelectionCloze()"
                         title="Make Flashcard Cloze" tabindex="-1">
