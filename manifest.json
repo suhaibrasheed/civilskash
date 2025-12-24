@@ -1,7 +1,7 @@
 {
   "name": "CivilsKash Ultimate",
   "short_name": "CivilsKash",
-  "description": "The ultimate spaced repetition tool for Civil Services preparation. Master General Knowledge with smart flashcards.",
+  "description": "The ultimate tool for Civil Services preparation. Master Current Affaris & GK with smart flashcards.",
   "id": "/",
   "start_url": "/index.html",
   "scope": "/",
