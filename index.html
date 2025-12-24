@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="sepia">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>CivilsKash Current Affairs - for UPSC/PSC/JKPSC & all Competitive Exams </title>
+    <title>CivilsKash - for Daily Current Affairs, UPSC GK & Flashcards </title>
 
     <meta name="description"
         content="Free UPSC/IAS/PSC & Other Exams preparation tool with daily current affairs, flashcards, spaced repetition system (SRS), Quiz and general knowledge notes.">
@@ -17,11 +17,11 @@
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VFSFLK6L80"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    
-      gtag('config', 'G-VFSFLK6L80');
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-VFSFLK6L80');
     </script>
 
     <meta property="og:title" content="CivilKash - Master Current Affairs">
@@ -39,7 +39,7 @@
 
     <link rel="stylesheet" href="style.css">
 
-    <meta name="theme-color" content="#18181b">
+    <meta name="theme-color" content="#e7d7b7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="google-site-verification" content="wUiOliD-vDlRhZkti0uiNPnZ4sNJ8Yn4Y_NEHicHjNY" />
@@ -59,21 +59,21 @@
       "logo": "https://civilskash.in/icon-192.png"
     }
     </script>
-    
+
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9975373090727883"
         crossorigin="anonymous"></script>
-   <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registered!', reg))
-            .catch(err => console.log('Registration failed', err));
-        });
-    }
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered!', reg))
+                    .catch(err => console.log('Registration failed', err));
+            });
+        }
     </script>
-    
+
 </head>
 
 <body class="theme-dark">
@@ -353,9 +353,9 @@
                     <span class="setting-sub">Choose your visual style</span>
                 </div>
                 <select id="theme-select" onchange="App.Actions.setTheme(this.value)" style="min-width: 120px;">
-                    <option value="dark">Dark (Default)</option>
+                    <option value="dark">Dark</option>
                     <option value="light">Light (Day)</option>
-                    <option value="sepia">Sepia (Reader)</option>
+                    <option value="sepia">Sepia (Default)</option>
                 </select>
             </div>
             <div class="setting-row">
@@ -425,10 +425,45 @@
                     <option value="bookmarks">Bookmarked Only</option>
                 </select>
                 <button class="btn-primary" style="padding: 0 24px; min-width: 100px; flex-shrink: 0;"
-                    onclick="App.Export.download()">Export</button>
+                    onclick="App.Export.showTimeFilter()">Export</button>
             </div>
             <button class="btn-large btn-outline" onclick="App.UI.closeModals()" style="margin-top:24px;">Close
                 Settings</button>
+        </div>
+    </div>
+
+    <!-- Time Period Selection Modal -->
+    <div class="modal-backdrop" id="modal-time-filter">
+        <div class="modal-card time-filter-modal">
+            <h2 style="margin-bottom: 8px;">Select Time Period</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">
+                Choose how far back to export content
+            </p>
+
+            <div class="time-period-grid">
+                <button class="time-period-btn" onclick="App.Export.downloadWithTime(7)" data-period="weekly">
+                    <span class="period-icon">📅</span>
+                    <span class="period-name">Weekly</span>
+                </button>
+
+                <button class="time-period-btn" onclick="App.Export.downloadWithTime(15)" data-period="fortnightly">
+                    <span class="period-icon">📆</span>
+                    <span class="period-name">Fortnightly</span>
+                </button>
+
+                <button class="time-period-btn" onclick="App.Export.downloadWithTime(30)" data-period="monthly">
+                    <span class="period-icon">🗓️</span>
+                    <span class="period-name">Monthly</span>
+                </button>
+
+                <button class="time-period-btn" onclick="App.Export.downloadWithTime(90)" data-period="quarterly">
+                    <span class="period-icon">📊</span>
+                    <span class="period-name">Quarterly</span>
+                </button>
+            </div>
+
+            <button class="btn-large btn-outline" onclick="App.UI.closeModals()"
+                style="margin-top: 20px;">Cancel</button>
         </div>
     </div>
 
