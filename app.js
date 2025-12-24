@@ -13,7 +13,6 @@ window.onerror = function (msg, url, line) {
     const el = document.getElementById('debug-console');
     el.style.display = 'block';
     el.innerText += `[Error] ${msg} (Line ${line})\n`;
-    // Keep loader visible so user sees error
     return false;
 };
 
@@ -2279,16 +2278,7 @@ const App = {
         init() {
             // 1. Check Permissions for System Notifications
             if ("Notification" in window) {
-                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                    setTimeout(() => {
-                        Notification.requestPermission().then(permission => {
-                            if (permission === "granted") {
-                                console.log("🔔 Notifications Granted");
-                                this.scheduleSystemNotification();
-                            }
-                        });
-                    }, 5000); // Ask nicely after 5s
-                } else if (Notification.permission === "granted") {
+                if (Notification.permission === "granted") {
                     this.scheduleSystemNotification();
                 }
             }
@@ -3131,14 +3121,15 @@ App.Annotate = {
     currentPath: [],
     colorIndex: 0,
     palettes: [
-        { name: 'Cosmic Purple', color: '#a855f7', core: '#faf5ff' },
-        { name: 'Electric Blue', color: '#2563eb', core: '#eff6ff' },
-        { name: 'Cyan Breeze', color: '#06b6d4', core: '#ecfeff' },
-        { name: 'Emerald Mint', color: '#10b981', core: '#f0fdf4' },
-        { name: 'Solar Yellow', color: '#eab308', core: '#fefce8' },
-        { name: 'Deep Orange', color: '#ea580c', core: '#fff7ed' },
-        { name: 'Ruby Crimson', color: '#dc2626', core: '#fef2f2' },
-        { name: 'Hot Magenta', color: '#d946ef', core: '#fdf4ff' }
+        // Ultra-distinct 8 color gradients with theme sensitivity
+        { name: 'Magenta Burst', colors: { dark: ['#ff00ff', '#ff1493'], light: ['#c71585', '#ff1493'], sepia: ['#db7093', '#ff1493'] } },
+        { name: 'Cyber Blue', colors: { dark: ['#00d4ff', '#0066ff'], light: ['#0080ff', '#0040ff'], sepia: ['#4682b4', '#1e90ff'] } },
+        { name: 'Lime Electric', colors: { dark: ['#00ff00', '#7fff00'], light: ['#32cd32', '#228b22'], sepia: ['#9acd32', '#6b8e23'] } },
+        { name: 'Tangerine', colors: { dark: ['#ff8c00', '#ff4500'], light: ['#ff6347', '#dc143c'], sepia: ['#ff8c00', '#d2691e'] } },
+        { name: 'Purple Haze', colors: { dark: ['#9d00ff', '#6a0dad'], light: ['#8b00ff', '#4b0082'], sepia: ['#9370db', '#663399'] } },
+        { name: 'Golden Sun', colors: { dark: ['#ffd700', '#ffb700'], light: ['#daa520', '#b8860b'], sepia: ['#daa520', '#cd853f'] } },
+        { name: 'Aqua Dream', colors: { dark: ['#00ffff', '#00ced1'], light: ['#00ced1', '#008b8b'], sepia: ['#48d1cc', '#5f9ea0'] } },
+        { name: 'Ruby Red', colors: { dark: ['#ff0000', '#ff1a1a'], light: ['#dc143c', '#8b0000'], sepia: ['#cd5c5c', '#a52a2a'] } }
     ],
     activeCard: null,
     activeScrollContent: null,
@@ -3148,7 +3139,8 @@ App.Annotate = {
 
         this.pCanvas = document.createElement('canvas');
         this.pCanvas.id = 'annotation-canvas-overlay';
-        this.pCanvas.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:99999; pointer-events:none; cursor:default; background:transparent;";
+        // FIX: Removed 100vw/100vh to prevent mobile address bar resize issues
+        this.pCanvas.style.cssText = "position:fixed; top:0; left:0; z-index:99999; pointer-events:none; cursor:default; background:transparent;";
         this.pCtx = this.pCanvas.getContext('2d');
 
         this.toolbar = document.createElement('div');
@@ -3174,7 +3166,7 @@ App.Annotate = {
             <button class="laser-btn laser-btn-eraser ${this.mode === 'eraser' ? 'active' : ''}" onclick="App.Annotate.setTool('eraser')" title="Eraser Tool">
                 <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l4.3 4.3c1 1 1 2.5 0 3.4L10.5 21z"/><path d="m15 5 4.3 4.3"/></svg>
             </button>
-            <button class="laser-btn laser-btn-color" onclick="App.Annotate.cycleColor()" title="Color: ${p.name}" style="background:${p.color}; box-shadow: 0 0 8px ${p.color};">
+            <button class="laser-btn laser-btn-color" onclick="App.Annotate.cycleColor()" title="Color: ${p.name}" style="background: linear-gradient(135deg, ${this.getCurrentColors()[0]}, ${this.getCurrentColors()[1]}); border: 1px solid rgba(255,255,255,0.3);">
             </button>
             <button class="laser-btn laser-btn-clear" onclick="App.Annotate.clear()" title="Clear All Decorations">
                 <svg viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -3202,8 +3194,16 @@ App.Annotate = {
 
     resize() {
         if (!this.pCanvas) return;
-        this.pCanvas.width = window.innerWidth;
-        this.pCanvas.height = window.innerHeight;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        // Match internal resolution
+        this.pCanvas.width = w;
+        this.pCanvas.height = h;
+
+        // Force CSS to match resolution EXACTLY
+        this.pCanvas.style.width = w + 'px';
+        this.pCanvas.style.height = h + 'px';
     },
 
     activate() {
@@ -3252,25 +3252,76 @@ App.Annotate = {
 
     cycleColor() {
         this.colorIndex = (this.colorIndex + 1) % this.palettes.length;
-        const p = this.palettes[this.colorIndex];
-        document.documentElement.style.setProperty('--laser-color', p.color);
-        document.documentElement.style.setProperty('--laser-core', p.core);
+        const colors = this.getCurrentColors();
+        // Use the first color for the UI accent var
+        document.documentElement.style.setProperty('--laser-color', colors[0]);
         App.UI.haptic(10);
-        this.updateToolbarHTML(); // Sync circular button color
+        this.updateToolbarHTML();
+    },
+
+    getCurrentColors() {
+        const p = this.palettes[this.colorIndex];
+        const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+        return p.colors[theme] || p.colors.dark;
     },
 
     getStyles() {
-        const p = this.palettes[this.colorIndex];
-        return { color: p.color, thick: this.mode === 'eraser' ? 50 : 1.8, core: p.core };
+        const colors = this.getCurrentColors();
+        return {
+            colors: colors,
+            thick: this.mode === 'eraser' ? 50 : 2.8  // Slightly reduced
+        };
     },
 
-    // --- PREMIUM CARVING ENGINE (v5.3 Eraser Optimized) ---
+    // Helper: Draw perfectly rounded rectangle manually
+    drawRoundedRect(ctx, x, y, w, h, radius) {
+        // Ensure positive width/height
+        if (w < 0) { x += w; w = -w; }
+        if (h < 0) { y += h; h = -h; }
+
+        // Clamp radius
+        const r = Math.min(radius, Math.abs(w) / 2, Math.abs(h) / 2);
+
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+    },
+
+    renderShape(ctx, type, x, y, w, h, path, fillOnly = false) {
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        if (type === 'pen') {
+            if (!path || path.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        } else {
+            this.drawRoundedRect(ctx, x, y, w, h, 18);
+        }
+
+        if (fillOnly) {
+            ctx.fill();
+        } else {
+            ctx.stroke();
+        }
+    },
+
+    // --- PRESTIGE GRADIENT NEON ENGINE (Premium Edition) ---
     drawLaser(context, type, x, y, w, h, isLocal = false) {
         if (this.mode === 'eraser') {
             context.save();
             context.globalCompositeOperation = 'destination-out';
             const renderingPath = isLocal ? this._getLocalPath() : this.currentPath;
-            context.lineWidth = 60; // Larger eraser for faster clearing
+            context.lineWidth = 60;
             context.lineJoin = 'round';
             context.lineCap = 'round';
             this.renderShape(context, 'pen', 0, 0, 0, 0, renderingPath);
@@ -3278,26 +3329,53 @@ App.Annotate = {
             return;
         }
 
-        const { color, thick, core } = this.getStyles();
+        const { colors, thick } = this.getStyles();
         const renderingPath = isLocal ? this._getLocalPath() : this.currentPath;
 
-        const layer = (ctx, strokeColor, lineWidth, alpha, blur, shadowColor, offset = 0) => {
-            ctx.save();
-            ctx.shadowBlur = blur;
-            ctx.shadowColor = shadowColor || strokeColor;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = lineWidth;
-            ctx.globalAlpha = alpha;
-            this.renderShape(ctx, type, x + offset, y + offset, w, h, renderingPath);
-            ctx.restore();
-        };
+        // 1. Create Screen-Space Gradient
+        const grad = context.createLinearGradient(0, 0, this.pCanvas.width, this.pCanvas.height);
+        grad.addColorStop(0, colors[0]);
+        grad.addColorStop(1, colors[1]);
 
-        // 1. DEPTH
-        layer(context, "rgba(0,0,0,0.15)", thick * 2.2, 1.0, 0, null, 0.8);
-        // 2. GLOW
-        layer(context, color, thick * 2, 0.45, 12, color);
-        // 3. CORE
-        layer(context, core, thick * 0.65, 1.0, 4, color);
+        context.save();
+
+        // HIGHLIGHTING LAYER: Fill for rectangles (0.15 opacity)
+        if (type === 'rect') {
+            context.fillStyle = colors[0]; // Use first color for fill
+            context.globalAlpha = 0.15;
+            this.renderShape(context, type, x, y, w, h, renderingPath, true);
+        }
+
+        // PREMIUM LAYER 1: Subtle outer stroke for depth
+        context.shadowBlur = 0;
+        context.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        context.lineWidth = thick + 1.5;
+        context.globalAlpha = 0.5;
+        this.renderShape(context, type, x, y, w, h, renderingPath);
+
+        // LAYER 2: The "Glow" (Atmosphere)
+        context.shadowBlur = 18;
+        context.shadowColor = colors[0]; // Use start color for glow
+        context.strokeStyle = grad;
+        context.lineWidth = thick;
+        context.globalAlpha = 0.75;
+        context.globalCompositeOperation = 'source-over';
+        this.renderShape(context, type, x, y, w, h, renderingPath);
+
+        // LAYER 3: The "Core" (Definition)
+        context.shadowBlur = 0;
+        context.lineWidth = thick;
+        context.strokeStyle = grad;
+        context.globalAlpha = 1.0;
+        this.renderShape(context, type, x, y, w, h, renderingPath);
+
+        // LAYER 4: "Glass Tube" Highlight (Premium shine)
+        context.lineWidth = thick * 0.35;
+        context.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        context.globalAlpha = 0.9;
+        this.renderShape(context, type, x, y, w, h, renderingPath);
+
+        context.restore();
     },
 
     _getLocalPath() {
