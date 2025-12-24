@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>CivilsKash - for Daily Current Affairs, UPSC/PSC, GK & Flashcards </title>
+    <title>CivilsKash - for Daily Current Affairs, UPSC GK & Flashcards </title>
 
     <meta name="description"
         content="Free UPSC/IAS/PSC & Other Exams preparation tool with daily current affairs, flashcards, spaced repetition system (SRS), Quiz and general knowledge notes.">
@@ -64,7 +64,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9975373090727883"
         crossorigin="anonymous"></script>
-   
+   <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered!', reg))
+            .catch(err => console.log('Registration failed', err));
+        });
+    }
+    </script>
     
 </head>
 
