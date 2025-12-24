@@ -1007,20 +1007,47 @@ const App = {
 
     // --- EXPORT ENGINE ---
     Export: {
-        download() {
+        // Show time filter modal instead of downloading immediately
+        showTimeFilter() {
+            App.UI.closeModals();
+            setTimeout(() => {
+                App.UI.openModal('modal-time-filter');
+            }, 350); // Wait for settings modal to fully close
+        },
+
+        // Download with time filtering
+        downloadWithTime(days) {
             const filter = document.getElementById('export-category-select').value;
             let notesToExport = App.State.feed;
 
+            // Calculate date threshold (days ago from now)
+            const now = new Date();
+            const threshold = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+
+            // Filter by time period
+            notesToExport = notesToExport.filter(n => {
+                const articleDate = new Date(n.date || n.createdAt || n.pubDate);
+                return articleDate >= threshold;
+            });
+
+            // Filter by category (existing logic)
             if (filter === 'bookmarks') {
                 notesToExport = notesToExport.filter(n => App.State.bookmarks.has(n.id));
             } else if (filter !== 'all') {
                 notesToExport = notesToExport.filter(n => n.category === filter);
             }
 
-            if (notesToExport.length === 0) return App.UI.toast("No notes to export.");
+            if (notesToExport.length === 0) {
+                App.UI.closeModals();
+                return App.UI.toast("No notes found for this period.");
+            }
 
+            // Build export file
             const dateStr = new Date().toISOString().slice(0, 10);
-            let mergedHtml = `<p style="color: #888; font-style: italic;">CivilsKash Export (${notesToExport.length} items)</p><hr style="margin-bottom: 2rem;">`;
+            const periodLabel = days === 7 ? 'Weekly' : days === 15 ? 'Fortnightly' :
+                days === 30 ? 'Monthly' : 'Quarterly';
+
+            let mergedHtml = `<p style="color: #888; font-style: italic;">CivilsKash ${periodLabel} Export (${notesToExport.length} items from last ${days} days)</p><hr style="margin-bottom: 2rem;">`;
 
             notesToExport.forEach(item => {
                 mergedHtml += `<blockquote style="margin-bottom: 0.5rem; border-left: 3px solid var(--primary-color);"><strong>${item.category}</strong></blockquote>`;
@@ -1031,9 +1058,9 @@ const App = {
 
             const singleNoteObj = {
                 id: 'art_' + crypto.randomUUID().replace(/-/g, '').substring(0, 12),
-                title: `CivilsKash Digest (${dateStr})`,
+                title: `CivilsKash ${periodLabel} Digest (${dateStr})`,
                 category: (filter === 'all' || filter === 'bookmarks') ? 'General' : filter,
-                tags: ['CivilsKash', 'Imported'],
+                tags: ['CivilsKash', 'Imported', periodLabel],
                 content: mergedHtml,
                 readCount: 0, readHistory: [], flashcards: {},
                 createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
@@ -1042,9 +1069,15 @@ const App = {
             const blob = new Blob([JSON.stringify([singleNoteObj], null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = `CivilsKash_Export_${dateStr}.notekash`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-            App.UI.toast(`Exported ${notesToExport.length} items!`);
+            a.href = url;
+            a.download = `CivilsKash_${periodLabel}_Export_${dateStr}.notekash`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            App.UI.closeModals();
+            App.UI.toast(`Exported ${notesToExport.length} items (${periodLabel})!`);
         }
     },
 
@@ -1838,6 +1871,12 @@ const App = {
             this.haptic(10);
             const el = document.getElementById(id);
 
+            // Auto-hide header menu when opening any modal
+            const headerMenu = document.getElementById('header-extras');
+            if (headerMenu && headerMenu.classList.contains('active')) {
+                headerMenu.classList.remove('active');
+            }
+
             if (id === 'modal-quiz-menu') {
                 if (App.Quiz && App.Quiz.updateStreakInfo) {
                     App.Quiz.updateStreakInfo();
@@ -1877,6 +1916,18 @@ const App = {
             el.style.display = 'flex';
             void el.offsetWidth; // Trigger reflow for animation
             el.classList.add('visible');
+
+            // Add click-outside-to-close functionality with proper delay
+            setTimeout(() => {
+                const clickOutsideHandler = (e) => {
+                    // Only close if clicking directly on the backdrop (not on modal card or its children)
+                    if (e.target === el && el.classList.contains('visible')) {
+                        this.closeModals();
+                        el.removeEventListener('click', clickOutsideHandler);
+                    }
+                };
+                el.addEventListener('click', clickOutsideHandler);
+            }, 300); // Wait for modal to fully appear before adding handler
         },
         closeModals() {
             document.querySelectorAll('.modal-backdrop').forEach(el => {
@@ -1957,7 +2008,7 @@ const App = {
             let html = `<option value="bookmarks">Bookmarked Only</option>`;
 
             // Curated always second after Bookmarked
-            html += `<option value="Curated">📝 Curated Notes</option>`;
+            html += `<option value="Curated">Curated Notes</option>`;
 
             categories.forEach(c => {
                 if (c !== 'Curated') html += `<option value="${c}">${c}</option>`;
@@ -2690,7 +2741,7 @@ const App = {
             }, { passive: true });
 
             // 2. RESTORE PREFERENCES
-            let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
+            let savedTheme = await this.DB.get('settings', 'themeName') || 'sepia';
             await App.Actions.setTheme(savedTheme);
             let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'paper';
             App.State.desktopLayout = savedLayout;
