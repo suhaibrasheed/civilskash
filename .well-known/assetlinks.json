@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "in.civilskash.twa",
-        "sha256_cert_fingerprints": ["A9:12:7A:99:40:9A:89:B4:CB:FA:91:51:87:32:74:87:F6:92:9A:84:79:9A:C2:D6:03:F0:5F:BB:9E:D2:B8:AD"]
+        "sha256_cert_fingerprints": ["AA:4C:6F:A5:83:26:18:11:84:0D:47:22:6C:90:25:B8:A9:2E:07:81:0A:8F:FD:DE:A0:2E:DE:F4:A9:13:43:0D"]
       }
     }]
