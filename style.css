@@ -3859,7 +3859,6 @@ body {
     box-shadow: -2px 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-/* Add a checkmark icon to the toggle thumb when checked */
 .custom-toggle:checked::before {
     content: '✓';
     position: absolute;
@@ -3981,7 +3980,6 @@ body {
 /* Annotation Aesthetic Core (v4) */
 :root {
     --laser-color: #a855f7;
-    /* Cosmic Purple Default */
     --laser-thickness: 1.8;
     --laser-core: #faf5ff;
 }
@@ -4000,7 +3998,6 @@ body {
 
 .laser-btn-eraser {
     background: #475569;
-    /* Slate Gray for Eraser */
     color: white !important;
 }
 
@@ -4028,13 +4025,11 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    /* No width/height here; managed via JS to match scrollable depth */
     pointer-events: none;
     z-index: 5;
     background: transparent;
 }
 
-/* Ensure scroll content tracks its children for positioning */
 .scroll-content {
     position: relative;
 }
