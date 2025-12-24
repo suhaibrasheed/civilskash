@@ -2,7 +2,7 @@
   "name": "CivilsKash Ultimate",
   "short_name": "CivilsKash",
   "description": "The ultimate spaced repetition tool for Civil Services preparation. Master General Knowledge with smart flashcards.",
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "scope": ".",
   "display": "standalone",
   "background_color": "#18181b",
