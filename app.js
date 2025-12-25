@@ -185,7 +185,6 @@ const App = {
         srsData: {},
         isDark: true,
         isGlobalHide: false,
-        // NEW SETTINGS
         flashcardFreq: 5,      // Minutes
         flashcardEnabled: true,
         quiz: { mode: null, deck: [], index: 0, currentScore: 0 },
@@ -637,6 +636,32 @@ const App = {
         }
     },
 
+    // --- EXPORT HELPER: Fix text spacing for html2canvas ---
+    // Note: Bold overlap is now fixed via CSS (using color instead of font-weight)
+    // This helper is kept for keyword/cloze elements as extra safety
+    _fixTextSpacingForExport(container) {
+        if (!container) return;
+
+        // Fix keyword/cloze elements spacing
+        const keywordElements = container.querySelectorAll('.keyword, .export-cloze');
+        keywordElements.forEach(el => {
+            const prevNode = el.previousSibling;
+            if (prevNode && prevNode.nodeType === Node.TEXT_NODE) {
+                const text = prevNode.textContent;
+                if (text && !text.endsWith(' ') && !text.endsWith('\n')) {
+                    prevNode.textContent = text + ' ';
+                }
+            }
+            const nextNode = el.nextSibling;
+            if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+                const text = nextNode.textContent;
+                if (text && !text.startsWith(' ') && !text.startsWith('\n')) {
+                    nextNode.textContent = ' ' + text;
+                }
+            }
+        });
+    },
+
     // --- USER ACTIONS ---
     Actions: {
         lastTapTime: 0,
@@ -790,6 +815,29 @@ const App = {
                                     <div class="watermark-badge">.in</div>
                                 `;
                         clonedCard.appendChild(watermark);
+
+                        // 4. KEYWORD SPACING FIX (optional safety for cloze elements)
+                        // Note: Bold overlap is now fixed via CSS (font-weight: inherit + color)
+                        const summaryBox = clonedCard.querySelector('.summary-box');
+                        if (summaryBox) {
+                            const keywordElements = summaryBox.querySelectorAll('.keyword');
+                            keywordElements.forEach(el => {
+                                const prevNode = el.previousSibling;
+                                if (prevNode && prevNode.nodeType === Node.TEXT_NODE) {
+                                    const text = prevNode.textContent;
+                                    if (text && !text.endsWith(' ')) {
+                                        prevNode.textContent = text + ' ';
+                                    }
+                                }
+                                const nextNode = el.nextSibling;
+                                if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+                                    const text = nextNode.textContent;
+                                    if (text && !text.startsWith(' ')) {
+                                        nextNode.textContent = ' ' + text;
+                                    }
+                                }
+                            });
+                        }
                     }
                 });
 
@@ -1443,6 +1491,10 @@ const App = {
                 const target = exportContainer.querySelector('.flashcard-export-canvas');
                 // Allow layout to settle
                 await new Promise(r => setTimeout(r, 100));
+
+                // FIX: Apply text spacing fix for html2canvas
+                const textContent = target.querySelector('.export-text-content');
+                App._fixTextSpacingForExport(textContent);
 
                 const canvas = await html2canvas(target, {
                     scale: 2, // High resolution
@@ -2577,7 +2629,6 @@ const App = {
 
             // 1. Process Text: Replace clozes with styled export format
             const tempDiv = document.createElement('div');
-            // FIX: use card.raw because card.summary is undefined for atomic cards
             tempDiv.innerHTML = card.raw || card.front;
             let cleanText = tempDiv.innerText;
             const processedText = cleanText.replace(/\{\{c\d+::(.*?)\}\}/g, '<span class="export-cloze"> [... ? ...] </span>');
@@ -2622,6 +2673,9 @@ const App = {
                 const target = exportContainer.querySelector('.flashcard-export-canvas');
                 await new Promise(r => setTimeout(r, 100)); // Layout settle
 
+                const textContent = target.querySelector('.export-text-content');
+                App._fixTextSpacingForExport(textContent);
+
                 const canvas = await html2canvas(target, {
                     scale: 2,
                     useCORS: true,
@@ -2656,14 +2710,12 @@ const App = {
 
         // --- SYSTEM NOTIFICATION LOGIC ---
         scheduleSystemNotification() {
-            // Check periodically
             this.timers.systemCheck = setInterval(() => {
                 this.checkAndSendSystemNotify();
             }, 3600000); // Check every hour
         },
 
         async checkAndSendSystemNotify() {
-            // FIX: Mobile Only Check
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
             if (!isMobile) return;
 
