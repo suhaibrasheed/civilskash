@@ -779,6 +779,12 @@ header {
     /* Optimized Padding */
     background: var(--bg-card) !important;
     flex: 1;
+    /* Ensure text wrapping for all child elements */
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 /* Quote Mark for Text-Only Export */
@@ -804,6 +810,13 @@ header {
     letter-spacing: -0.03em !important;
     position: relative;
     z-index: 2;
+    /* Fix text wrapping */
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .news-card.export-mode .summary-box {
@@ -814,6 +827,13 @@ header {
     opacity: 0.95 !important;
     position: relative;
     z-index: 2;
+    /* Fix text wrapping and prevent overlap */
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Export Header Fix (Uncluttered) */
@@ -851,10 +871,52 @@ header {
     opacity: 1 !important;
     display: inline-block !important;
     vertical-align: baseline !important;
+    /* Ensure keywords wrap properly */
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
 }
 
 .news-card.export-mode .keyword::after {
     content: none !important;
+}
+
+/* EXPORT MODE: Replace Bold with Color Highlighting (Fixes html2canvas overlap) */
+.news-card.export-mode .summary-box b,
+.news-card.export-mode .summary-box strong,
+.news-card.export-mode b,
+.news-card.export-mode strong {
+    /* REMOVE BOLD - Use color instead to prevent overlap */
+    font-weight: inherit !important;
+    /* Theme-sensitive highlight color - Default (Dark theme) */
+    color: #fbbf24 !important;
+    /* Warm gold for dark mode */
+    /* Clean text properties */
+    display: inline !important;
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Light Theme: Teal accent color */
+[data-theme="light"] .news-card.export-mode .summary-box b,
+[data-theme="light"] .news-card.export-mode .summary-box strong,
+[data-theme="light"] .news-card.export-mode b,
+[data-theme="light"] .news-card.export-mode strong {
+    color: #0d9488 !important;
+    /* Beautiful teal */
+    font-weight: inherit !important;
+}
+
+/* Sepia Theme: Rich amber color */
+[data-theme="sepia"] .news-card.export-mode .summary-box b,
+[data-theme="sepia"] .news-card.export-mode .summary-box strong,
+[data-theme="sepia"] .news-card.export-mode b,
+[data-theme="sepia"] .news-card.export-mode strong {
+    color: #c17011 !important;
+    /* Warm amber */
+    font-weight: inherit !important;
 }
 
 .export-footer {
@@ -1094,6 +1156,15 @@ h2 {
     color: var(--highlight-bold-text);
     padding: 0;
     font-weight: 800;
+    /* CRITICAL FIX: Prevent text overlap in bold highlights */
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    white-space: normal !important;
+    display: inline !important;
+    /* Preserve natural word spacing */
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
 }
 
 
@@ -3413,6 +3484,26 @@ body {
     line-height: 1.5;
     font-weight: 500;
     color: #fafafa;
+    /* FIX: Ensure proper text wrapping for html2canvas */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
+    white-space: normal;
+    word-spacing: normal;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Bold text in export - Replace with COLOR instead of bold weight */
+.export-text-content b,
+.export-text-content strong {
+    /* REMOVE BOLD - Use color to highlight and prevent overlap */
+    font-weight: inherit !important;
+    color: #fbbf24 !important;
+    /* Warm gold - matches the dark export canvas */
+    display: inline;
+    word-spacing: normal;
+    letter-spacing: normal;
 }
 
 /* THE CLOZE (Answer) STYLE - Reddish & Premium */
@@ -4274,7 +4365,6 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    /* No width/height here; managed via JS to match scrollable depth */
     pointer-events: none;
     z-index: 5;
     background: transparent;
