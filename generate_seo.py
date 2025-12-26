@@ -4,6 +4,7 @@ import re
 import hashlib
 import json
 import random
+import shutil  # Required for deleting folders
 from datetime import datetime
 
 # --- CONFIGURATION ---
@@ -212,34 +213,22 @@ def generate_stable_id(item):
     return f"{title_slug}-{hash_suffix}"
 
 def parse_date_for_seo(date_str):
-    """
-    Converts display date (1 Nov 25) to ISO format (2025-11-01) for Google.
-    Falls back to today if format fails.
-    """
     if not date_str:
         return datetime.now().strftime("%Y-%m-%d")
     try:
-        # Attempts to parse '1 Nov 25' or '01 Nov 2025'
         return datetime.strptime(date_str, "%d %b %y").strftime("%Y-%m-%d")
     except ValueError:
         try:
-             # Backup: try full year format
              return datetime.strptime(date_str, "%d %b %Y").strftime("%Y-%m-%d")
         except:
              return datetime.now().strftime("%Y-%m-%d")
 
-# --- SMART DATE CHECKER ---
 def get_existing_date(file_path):
-    """
-    Opens existing HTML file and reads the date.
-    Used to compare against Sheet date.
-    """
     if not os.path.exists(file_path):
         return None
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            # Looks for: <span class="date">1 Nov 25</span>
             match = re.search(r'<span class="date">(.*?)</span>', content)
             if match:
                 return match.group(1).strip()
@@ -247,9 +236,39 @@ def get_existing_date(file_path):
         return None
     return None
 
+# --- NEW CLEANUP FUNCTION (The "Zombie" Killer) ---
+def clean_stale_notes(valid_ids):
+    """
+    Removes folders in OUTPUT_DIR that are no longer in the valid_ids list.
+    """
+    print("\n🧹 Starting Cleanup of Stale Notes...")
+    if not os.path.exists(OUTPUT_DIR):
+        return
+
+    existing_folders = [d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))]
+    deleted_count = 0
+
+    for folder in existing_folders:
+        # We only delete it if it's NOT in our new list of generated IDs
+        if folder not in valid_ids:
+            # SAFETY: Only delete folders that look like generated notes (contain dashes or start with note-)
+            if "-" in folder or folder.startswith("note-"):
+                folder_path = os.path.join(OUTPUT_DIR, folder)
+                try:
+                    shutil.rmtree(folder_path)
+                    print(f"   ❌ Deleted Zombie Folder: {folder}")
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"   ⚠️ Could not delete {folder}: {e}")
+    
+    if deleted_count == 0:
+        print("   ✅ No stale notes found. Directory is clean.")
+    else:
+        print(f"   🧹 Cleanup Finished. Removed {deleted_count} stale notes.")
+
 # --- MAIN LOGIC ---
 def generate_site():
-    print("🚀 Starting Smart SEO Generation (Date-Lock Mode)...")
+    print("🚀 Starting Smart SEO Generation (with Auto-Cleanup)...")
 
     try:
         response = requests.get(f"{DATA_URL}?t=seo_lite", timeout=10)
@@ -266,12 +285,17 @@ def generate_site():
 
     updated_count = 0
     skipped_count = 0
-    sitemap_entries = [] # Stores tuple (url, iso_date)
+    sitemap_entries = []
+    
+    # Track valid IDs to detect zombies later
+    valid_ids = set()
 
     print(f"⚡ Processing {len(full_data)} items...")
 
     for item in full_data:
         unique_id = generate_stable_id(item)
+        valid_ids.add(unique_id)  # Mark this ID as valid
+        
         folder_path = f"{OUTPUT_DIR}/{unique_id}"
         file_path = f"{folder_path}/index.html"
         page_url = f"{BASE_URL}/notes/{unique_id}/"
@@ -279,19 +303,17 @@ def generate_site():
         # 1. PREPARE METADATA
         title = item.get('title', 'Untitled Note')
         new_date_str = item.get('date', datetime.now().strftime("%d %b %Y")).strip()
-        iso_date_seo = parse_date_for_seo(new_date_str) # Get Machine Readable Date
+        iso_date_seo = parse_date_for_seo(new_date_str)
         
-        # 2. THE SMART CHECK (Logic: If File Exists AND Dates Match -> SKIP)
+        # 2. THE SMART CHECK
         existing_date = get_existing_date(file_path)
         
         if existing_date and existing_date == new_date_str:
-            # The file is up to date. Do not touch it.
             skipped_count += 1
-            # IMPORTANT: Even if skipped, we add to sitemap with correct date
             sitemap_entries.append((page_url, iso_date_seo)) 
             continue
 
-        # 3. GENERATE NEW CONTENT (Only runs if Date is different or File is new)
+        # 3. GENERATE NEW CONTENT
         raw_summary = item.get('summary', '')
         desc_clean = strip_tags(raw_summary)[:160].replace('"', "'").strip()
         body_html = convert_cloze_to_highlights(raw_summary)
@@ -299,14 +321,13 @@ def generate_site():
         image_url = item.get('image', '').strip()
         og_image = image_url if image_url else f"{BASE_URL}/icon-512.png"
         
-        # Schema for SEO (Updated to use ISO Date)
         schema_data = {
             "@context": "https://schema.org",
             "@type": "Article",
             "headline": title,
             "image": [og_image],
             "datePublished": iso_date_seo, 
-            "dateModified": iso_date_seo, # Crucial for Google
+            "dateModified": iso_date_seo, 
             "author": {"@type": "Organization", "name": "CivilsKash"},
             "publisher": {
                 "@type": "Organization",
@@ -317,7 +338,6 @@ def generate_site():
             "mainEntityOfPage": {"@type": "WebPage", "@id": page_url}
         }
 
-        # Related Articles
         others = [x for x in full_data if x != item and x.get('title')]
         related = random.sample(others, min(3, len(others))) if others else []
         related_str = ""
@@ -349,7 +369,6 @@ def generate_site():
             related_html=related_str
         )
 
-        # Write File
         if not os.path.exists(folder_path): os.makedirs(folder_path)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(final_html)
@@ -359,17 +378,14 @@ def generate_site():
         
         sitemap_entries.append((page_url, iso_date_seo))
 
-    # 4. SITEMAP GENERATION (Corrected for SEO)
-    print("🗺️  Updating sitemap.xml with Last-Modified Tags...")
-    
-    # Use today for homepage lastmod
+    # 4. PERFORM CLEANUP (Delete old/renamed notes)
+    clean_stale_notes(valid_ids)
+
+    # 5. SITEMAP GENERATION
+    print("🗺️  Updating sitemap.xml...")
     today_iso = datetime.now().strftime("%Y-%m-%d")
-    
     sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    # Homepage entry
     sitemap += f'  <url><loc>{BASE_URL}/</loc><lastmod>{today_iso}</lastmod><priority>1.0</priority></url>\n'
-    
-    # Article entries
     for url, mod_date in sitemap_entries:
         sitemap += f'  <url><loc>{url}</loc><lastmod>{mod_date}</lastmod></url>\n'
     sitemap += '</urlset>'
@@ -377,22 +393,17 @@ def generate_site():
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write(sitemap)
 
-    # 5. AUTO-PING GOOGLE (The Fix for 'Unknown URL')
-    print("📡 Pinging Google to index new changes...")
+    # 6. AUTO-PING
+    print("📡 Pinging Google...")
     try:
         ping_url = f"http://www.google.com/ping?sitemap={BASE_URL}/sitemap.xml"
-        # We use a simple get request to notify Google
-        p_response = requests.get(ping_url)
-        if p_response.status_code == 200:
-             print("✅ Google successfully notified! (Status 200)")
-        else:
-             print(f"⚠️ Google Ping returned: {p_response.status_code}")
-    except Exception as e:
-        print(f"⚠️ Google Ping failed (Network Issue): {e}")
+        requests.get(ping_url, timeout=5)
+    except:
+        pass
 
     print(f"✅ Finished.")
     print(f"   - Files Updated: {updated_count}")
-    print(f"   - Files Skipped (Unchanged): {skipped_count}")
+    print(f"   - Files Skipped: {skipped_count}")
 
 if __name__ == "__main__":
     generate_site()
