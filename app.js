@@ -1959,6 +1959,352 @@ const App = {
             });
         },
 
+        // --- INTERACTIVE POP-OUT IMAGE VIEWER ---
+        imageViewerState: {
+            scale: 1,
+            isDragging: false,
+            isResizing: false,
+            startX: 0,
+            startY: 0,
+            initialLeft: 0,
+            initialTop: 0,
+            initialWidth: 0,
+            initialHeight: 0,
+            imgCssX: 0,
+            imgCssY: 0,
+            isImagePanning: false
+        },
+
+        openImageViewer(url, originEl) {
+            if (!document.getElementById('image-viewer-modal')) {
+                this.initImageViewer();
+            }
+            const modal = document.getElementById('image-viewer-modal');
+            const container = document.getElementById('image-viewer-container');
+            const img = document.getElementById('image-viewer-target');
+
+            // 1. Reset State
+            this.imageViewerState = {
+                scale: 1,
+                isDragging: false, isResizing: false, isImagePanning: false,
+                startX: 0, startY: 0,
+                imgCssX: 0, imgCssY: 0
+            };
+            img.style.transform = `translate(0px, 0px) scale(1)`;
+            img.src = url;
+
+            // 2. Calculate Start Position (Pop-out Effect)
+            const originRect = originEl && originEl.getBoundingClientRect ? originEl.getBoundingClientRect() : null;
+            this.imageViewerState.originRect = originRect;
+
+            if (originRect) {
+                // Initialize at origin
+                container.style.transition = 'none';
+                container.style.borderRadius = '16px';
+                container.style.top = `${originRect.top}px`;
+                container.style.left = `${originRect.left}px`;
+                container.style.width = `${originRect.width}px`;
+                container.style.height = `${originRect.height}px`;
+                container.style.opacity = '0.5';
+
+                // Force Reflow
+                void container.offsetWidth;
+            } else {
+                // Fallback start
+                container.style.top = '50%';
+                container.style.left = '50%';
+                container.style.width = '100px';
+                container.style.height = '100px';
+                container.style.opacity = '0';
+            }
+
+            modal.style.display = 'block';
+
+            // 3. Calculate Target Size (Smart Fit) & Animate
+            const tempImg = new Image();
+            tempImg.src = url;
+
+            tempImg.onload = () => {
+                const natW = tempImg.naturalWidth || 800;
+                const natH = tempImg.naturalHeight || 600;
+
+                // Max constraints (85% of viewport)
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const maxW = vw * 0.85;
+                const maxH = vh * 0.85;
+
+                // Calculate scale to fit
+                const scale = Math.min(maxW / natW, maxH / natH, 1); // 1 = don't upscale small images too much? actually maybe let them fill? 
+
+                // Let's cap at 1.5x for small images, but usually we just want them to fit safely
+                const finalScale = Math.min(maxW / natW, maxH / natH);
+
+                const targetWidth = natW * finalScale;
+                const targetHeight = natH * finalScale;
+
+                requestAnimationFrame(() => {
+                    modal.classList.add('visible');
+                    container.classList.add('animating');
+                    container.style.transition = 'all 0.4s cubic-bezier(0.1, 0.7, 0.1, 1)'; // Smooth pop
+
+                    container.style.opacity = '1';
+                    container.style.width = `${targetWidth}px`;
+                    container.style.height = `${targetHeight}px`;
+
+                    // Center it
+                    container.style.top = `${(vh - targetHeight) / 2}px`;
+                    container.style.left = `${(vw - targetWidth) / 2}px`;
+                });
+            };
+
+            // If cached/fast load
+            if (tempImg.complete) tempImg.onload();
+
+            // Fallback for load failure or very slow load - just open standard size
+            setTimeout(() => {
+                if (!modal.classList.contains('visible')) {
+                    modal.classList.add('visible');
+                    container.style.width = '80vw';
+                    container.style.height = '80vh';
+                    container.style.top = '10vh';
+                    container.style.left = '10vw';
+                }
+            }, 500);
+        },
+
+        closeImageViewer() {
+            const modal = document.getElementById('image-viewer-modal');
+            if (modal) {
+                modal.classList.remove('visible');
+                setTimeout(() => modal.style.display = 'none', 300);
+            }
+        },
+
+        toggleFullScreen() {
+            const container = document.getElementById('image-viewer-container');
+            const state = this.imageViewerState;
+
+            container.classList.add('animating');
+
+            if (state.isFullscreen) {
+                // Exit fullscreen - return to centered view
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                // Recalculate optimal size roughly
+                const targetWidth = Math.min(vw * 0.8, 1000);
+                const targetHeight = Math.min(vh * 0.8, 800);
+
+                container.style.top = `${(vh - targetHeight) / 2}px`;
+                container.style.left = `${(vw - targetWidth) / 2}px`;
+                container.style.width = `${targetWidth}px`;
+                container.style.height = `${targetHeight}px`;
+                container.style.borderRadius = '16px';
+
+                container.classList.remove('fullscreen-mode');
+                state.isFullscreen = false;
+            } else {
+                // Enter fullscreen
+                container.style.top = '0px';
+                container.style.left = '0px';
+                container.style.width = '100vw';
+                container.style.height = '100vh';
+                container.style.borderRadius = '0';
+
+                container.classList.add('fullscreen-mode');
+                state.isFullscreen = true;
+            }
+
+            setTimeout(() => container.classList.remove('animating'), 400);
+        },
+
+        zoomImage(direction) {
+            const img = document.getElementById('image-viewer-target');
+            let { scale, imgCssX, imgCssY } = this.imageViewerState;
+
+            const step = 0.25;
+            if (direction === 'in') scale += step;
+            if (direction === 'out') scale -= step;
+
+            // Limits
+            if (scale < 1) { scale = 1; imgCssX = 0; imgCssY = 0; }
+            if (scale > 5) scale = 5;
+
+            this.imageViewerState.scale = scale;
+            this.imageViewerState.imgCssX = imgCssX;
+            this.imageViewerState.imgCssY = imgCssY;
+
+            img.style.transform = `translate(${imgCssX}px, ${imgCssY}px) scale(${scale})`;
+        },
+
+        initImageViewer() {
+            // Create DOM with enhanced structure
+            const div = document.createElement('div');
+            div.id = 'image-viewer-modal';
+            div.className = 'image-viewer-modal';
+            div.innerHTML = `
+                <div class="image-viewer-container" id="image-viewer-container">
+                    <img id="image-viewer-target" class="image-viewer-img" src="" alt="View" draggable="false">
+                    <div class="resize-handle" id="viewer-resize-handle"></div>
+                </div>
+                
+                <!-- Compact Pill Toolbar (Restored to Fixed Position) -->
+                <div class="viewer-toolbar" onclick="event.stopPropagation()">
+                     <button class="viewer-btn" onclick="App.UI.zoomImage('in')" title="Zoom In">
+                        <svg viewBox="0 0 24 24" fill="none"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    </button>
+                    <button class="viewer-btn" onclick="App.UI.zoomImage('out')" title="Zoom Out">
+                        <svg viewBox="0 0 24 24" fill="none"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
+                    </button>
+                    <div style="width:1px; background:var(--border-glass); margin:0 4px;"></div>
+
+                    <button class="viewer-btn" onclick="App.UI.toggleFullScreen()" title="Full Screen">
+                         <svg viewBox="0 0 24 24" fill="none"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                    </button>
+                    <button class="viewer-btn close-btn" onclick="App.UI.closeImageViewer()" title="Close">
+                        <svg viewBox="0 0 24 24" fill="none"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                
+                <!-- Gallery Navigation -->
+                <button class="viewer-nav-btn viewer-nav-prev" id="viewer-nav-prev" onclick="event.stopPropagation(); App.UI.navigateGallery(-1)" title="Previous Image">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <button class="viewer-nav-btn viewer-nav-next" id="viewer-nav-next" onclick="event.stopPropagation(); App.UI.navigateGallery(1)" title="Next Image">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                
+                <!-- Zoom Indicator -->
+                <div class="viewer-zoom-indicator" id="viewer-zoom-indicator">100%</div>
+            `;
+            document.body.appendChild(div);
+
+            const container = document.getElementById('image-viewer-container');
+            const handle = document.getElementById('viewer-resize-handle');
+            const img = document.getElementById('image-viewer-target');
+
+            // --- 1. CONTAINER DRAG (Move the window) ---
+            container.addEventListener('mousedown', (e) => {
+                // Only drag if clicking container background (not image if zoomed, not resize handle)
+                if (e.target === handle || (e.target === img && App.UI.imageViewerState.scale > 1)) return;
+
+                e.preventDefault();
+                App.UI.imageViewerState.isDragging = true;
+                App.UI.imageViewerState.startX = e.clientX;
+                App.UI.imageViewerState.startY = e.clientY;
+
+                // Get current computed style
+                const style = window.getComputedStyle(container);
+                App.UI.imageViewerState.initialLeft = parseFloat(style.left);
+                App.UI.imageViewerState.initialTop = parseFloat(style.top);
+
+                container.classList.add('interacting');
+            });
+
+            // --- 2. RESIZE DRAG ---
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Don't trigger container drag
+                App.UI.imageViewerState.isResizing = true;
+                App.UI.imageViewerState.startX = e.clientX;
+                App.UI.imageViewerState.startY = e.clientY;
+
+                const style = window.getComputedStyle(container);
+                App.UI.imageViewerState.initialWidth = parseFloat(style.width);
+                App.UI.imageViewerState.initialHeight = parseFloat(style.height);
+
+                container.classList.add('interacting');
+            });
+
+            // --- 3. IMAGE PAN (Only when zoomed) ---
+            img.addEventListener('mousedown', (e) => {
+                if (App.UI.imageViewerState.scale <= 1) return; // Pass through to container drag
+                e.preventDefault();
+                e.stopPropagation();
+
+                App.UI.imageViewerState.isImagePanning = true;
+                App.UI.imageViewerState.startX = e.clientX - App.UI.imageViewerState.imgCssX;
+                App.UI.imageViewerState.startY = e.clientY - App.UI.imageViewerState.imgCssY;
+                container.style.cursor = 'grabbing';
+            });
+
+            // --- GLOBAL MOUSE MOVE/UP with bounds checking ---
+            window.addEventListener('mousemove', (e) => {
+                const s = App.UI.imageViewerState;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+
+                // A. Container Move with bounds checking
+                if (s.isDragging) {
+                    const dx = e.clientX - s.startX;
+                    const dy = e.clientY - s.startY;
+
+                    let newLeft = s.initialLeft + dx;
+                    let newTop = s.initialTop + dy;
+
+                    // Keep at least 100px visible on screen
+                    const containerWidth = parseFloat(container.style.width) || container.offsetWidth;
+                    const containerHeight = parseFloat(container.style.height) || container.offsetHeight;
+                    const minVisible = 100;
+
+                    newLeft = Math.max(-containerWidth + minVisible, Math.min(vw - minVisible, newLeft));
+                    newTop = Math.max(-containerHeight + minVisible, Math.min(vh - minVisible, newTop));
+
+                    container.style.left = `${newLeft}px`;
+                    container.style.top = `${newTop}px`;
+                }
+
+                // B. Resizing with minimum size
+                if (s.isResizing) {
+                    const dx = e.clientX - s.startX;
+                    const dy = e.clientY - s.startY;
+                    const newWidth = Math.max(200, s.initialWidth + dx);
+                    const newHeight = Math.max(150, s.initialHeight + dy);
+                    container.style.width = `${newWidth}px`;
+                    container.style.height = `${newHeight}px`;
+                }
+
+                // C. Image Panning
+                if (s.isImagePanning) {
+                    const x = e.clientX - s.startX;
+                    const y = e.clientY - s.startY;
+                    s.imgCssX = x;
+                    s.imgCssY = y;
+                    img.style.transform = `translate(${x}px, ${y}px) scale(${s.scale})`;
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (App.UI.imageViewerState.isDragging || App.UI.imageViewerState.isResizing) {
+                    container.classList.remove('interacting');
+                }
+                App.UI.imageViewerState.isDragging = false;
+                App.UI.imageViewerState.isResizing = false;
+                App.UI.imageViewerState.isImagePanning = false;
+                container.style.cursor = 'grab';
+            });
+
+            // --- ZOOM WHEEL ---
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                App.UI.zoomImage(e.deltaY < 0 ? 'in' : 'out');
+            });
+
+            // --- CLOSE ON BACKDROP CLICK ---
+            div.addEventListener('click', (e) => {
+                if (e.target === div) App.UI.closeImageViewer();
+            });
+
+            // --- KEYBOARD: Escape to close ---
+            document.addEventListener('keydown', (e) => {
+                const modal = document.getElementById('image-viewer-modal');
+                if (!modal || modal.style.display === 'none') return;
+                if (e.key === 'Escape') {
+                    App.UI.closeImageViewer();
+                }
+            });
+        },
+
         applyPendingUpdate() {
             if (App.State.pendingFeedUpdate) {
                 App.State.feed = App.Data.mergeStrategy(App.State.pendingFeedUpdate);
@@ -2146,7 +2492,11 @@ const App = {
                     <div id="heart-anim-${item.id}" class="heart-pop">❤️</div>
 
                     <div class="scroll-content">
-                        ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}')"></div>` : ''}
+
+
+                        ${hasImg ? `<div class="card-img" style="background-image: url('${item.image}'); cursor: pointer;" onclick="event.stopPropagation(); App.UI.openImageViewer('${item.image}', this)"></div>` : ''}
+
+
                         
                         <div class="card-body">
                             <div class="meta-row">
