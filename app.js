@@ -1986,9 +1986,10 @@ const App = {
             // 1. Reset State
             this.imageViewerState = {
                 scale: 1,
-                isDragging: false, isResizing: false, isImagePanning: false,
+                isDragging: false, isResizing: false, isImagePanning: false, isPinching: false,
                 startX: 0, startY: 0,
-                imgCssX: 0, imgCssY: 0
+                imgCssX: 0, imgCssY: 0,
+                initialPinchDistance: 0, initialScale: 1
             };
             img.style.transform = `translate(0px, 0px) scale(1)`;
             img.src = url;
@@ -2183,66 +2184,115 @@ const App = {
             const handle = document.getElementById('viewer-resize-handle');
             const img = document.getElementById('image-viewer-target');
 
-            // --- 1. CONTAINER DRAG (Move the window) ---
-            container.addEventListener('mousedown', (e) => {
-                // Only drag if clicking container background (not image if zoomed, not resize handle)
-                if (e.target === handle || (e.target === img && App.UI.imageViewerState.scale > 1)) return;
+            // --- 1. UNIFIED DRAG / RESIZE / PAN HANDLER (Mouse & Touch) ---
+            const handleStart = (e, type, context) => {
+                // Pinch to Zoom (Touch Only)
+                if (type === 'touch' && e.touches.length === 2) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const s = App.UI.imageViewerState;
+                    s.isPinching = true;
+                    s.initialPinchDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    s.initialScale = s.scale;
+                    return;
+                }
 
-                e.preventDefault();
-                App.UI.imageViewerState.isDragging = true;
-                App.UI.imageViewerState.startX = e.clientX;
-                App.UI.imageViewerState.startY = e.clientY;
-
-                // Get current computed style
-                const style = window.getComputedStyle(container);
-                App.UI.imageViewerState.initialLeft = parseFloat(style.left);
-                App.UI.imageViewerState.initialTop = parseFloat(style.top);
-
-                container.classList.add('interacting');
-            });
-
-            // --- 2. RESIZE DRAG ---
-            handle.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation(); // Don't trigger container drag
-                App.UI.imageViewerState.isResizing = true;
-                App.UI.imageViewerState.startX = e.clientX;
-                App.UI.imageViewerState.startY = e.clientY;
-
-                const style = window.getComputedStyle(container);
-                App.UI.imageViewerState.initialWidth = parseFloat(style.width);
-                App.UI.imageViewerState.initialHeight = parseFloat(style.height);
-
-                container.classList.add('interacting');
-            });
-
-            // --- 3. IMAGE PAN (Only when zoomed) ---
-            img.addEventListener('mousedown', (e) => {
-                if (App.UI.imageViewerState.scale <= 1) return; // Pass through to container drag
-                e.preventDefault();
-                e.stopPropagation();
-
-                App.UI.imageViewerState.isImagePanning = true;
-                App.UI.imageViewerState.startX = e.clientX - App.UI.imageViewerState.imgCssX;
-                App.UI.imageViewerState.startY = e.clientY - App.UI.imageViewerState.imgCssY;
-                container.style.cursor = 'grabbing';
-            });
-
-            // --- GLOBAL MOUSE MOVE/UP with bounds checking ---
-            window.addEventListener('mousemove', (e) => {
+                // Single Point Interaction
+                const clientX = type === 'touch' ? e.touches[0].clientX : e.clientX;
+                const clientY = type === 'touch' ? e.touches[0].clientY : e.clientY;
                 const s = App.UI.imageViewerState;
+
+                if (context === 'container') {
+                    // Check logic: don't drag if on handle or panning image
+                    if (e.target === handle || (e.target === img && s.scale > 1)) return;
+
+                    if (type === 'touch') e.preventDefault(); // Prevent scrolling
+
+                    s.isDragging = true;
+                    s.startX = clientX;
+                    s.startY = clientY;
+
+                    const style = window.getComputedStyle(container);
+                    s.initialLeft = parseFloat(style.left);
+                    s.initialTop = parseFloat(style.top);
+                    container.classList.add('interacting');
+                }
+                else if (context === 'resize') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    s.isResizing = true;
+                    s.startX = clientX;
+                    s.startY = clientY;
+                    const style = window.getComputedStyle(container);
+                    s.initialWidth = parseFloat(style.width);
+                    s.initialHeight = parseFloat(style.height);
+                    container.classList.add('interacting');
+                }
+                else if (context === 'pan') {
+                    if (s.scale <= 1) return; // Allow bubbling to container drag if not zoomed
+                    e.preventDefault();
+                    e.stopPropagation();
+                    s.isImagePanning = true;
+                    s.startX = clientX - s.imgCssX;
+                    s.startY = clientY - s.imgCssY;
+                    container.style.cursor = 'grabbing';
+                }
+            };
+
+            // Attach Start Listeners
+            container.addEventListener('mousedown', (e) => handleStart(e, 'mouse', 'container'));
+            container.addEventListener('touchstart', (e) => handleStart(e, 'touch', 'container'), { passive: false });
+
+            handle.addEventListener('mousedown', (e) => handleStart(e, 'mouse', 'resize'));
+            handle.addEventListener('touchstart', (e) => handleStart(e, 'touch', 'resize'), { passive: false });
+
+            img.addEventListener('mousedown', (e) => handleStart(e, 'mouse', 'pan'));
+            img.addEventListener('touchstart', (e) => handleStart(e, 'touch', 'pan'), { passive: false });
+
+
+            // --- 2. GLOBAL MOVE HANDLER ---
+            const handleMove = (e) => {
+                const s = App.UI.imageViewerState;
+
+                // Handle Pinch
+                if (s.isPinching && e.touches && e.touches.length === 2) {
+                    e.preventDefault();
+                    const currentDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    let newScale = s.initialScale * (currentDist / s.initialPinchDistance);
+                    // Clamping
+                    if (newScale < 1) newScale = 1;
+                    if (newScale > 5) newScale = 5;
+                    s.scale = newScale;
+                    img.style.transform = `translate(${s.imgCssX}px, ${s.imgCssY}px) scale(${s.scale})`;
+                    return;
+                }
+
+                if (!s.isDragging && !s.isResizing && !s.isImagePanning) return;
+
+                // Prevent defaults during active interaction
+                if (e.touches || s.isDragging || s.isResizing || s.isImagePanning) {
+                    e.preventDefault();
+                }
+
+                const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+                const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
 
-                // A. Container Move with bounds checking
+                // A. Container Move
                 if (s.isDragging) {
-                    const dx = e.clientX - s.startX;
-                    const dy = e.clientY - s.startY;
-
+                    const dx = clientX - s.startX;
+                    const dy = clientY - s.startY;
                     let newLeft = s.initialLeft + dx;
                     let newTop = s.initialTop + dy;
 
-                    // Keep at least 100px visible on screen
+                    // Bounds
                     const containerWidth = parseFloat(container.style.width) || container.offsetWidth;
                     const containerHeight = parseFloat(container.style.height) || container.offsetHeight;
                     const minVisible = 100;
@@ -2254,35 +2304,45 @@ const App = {
                     container.style.top = `${newTop}px`;
                 }
 
-                // B. Resizing with minimum size
+                // B. Resizing
                 if (s.isResizing) {
-                    const dx = e.clientX - s.startX;
-                    const dy = e.clientY - s.startY;
+                    const dx = clientX - s.startX;
+                    const dy = clientY - s.startY;
                     const newWidth = Math.max(200, s.initialWidth + dx);
                     const newHeight = Math.max(150, s.initialHeight + dy);
                     container.style.width = `${newWidth}px`;
                     container.style.height = `${newHeight}px`;
                 }
 
-                // C. Image Panning
+                // C. Panning
                 if (s.isImagePanning) {
-                    const x = e.clientX - s.startX;
-                    const y = e.clientY - s.startY;
+                    const x = clientX - s.startX;
+                    const y = clientY - s.startY;
                     s.imgCssX = x;
                     s.imgCssY = y;
                     img.style.transform = `translate(${x}px, ${y}px) scale(${s.scale})`;
                 }
-            });
+            };
 
-            window.addEventListener('mouseup', () => {
-                if (App.UI.imageViewerState.isDragging || App.UI.imageViewerState.isResizing) {
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('touchmove', handleMove, { passive: false });
+
+
+            // --- 3. END HANDLER ---
+            const handleEnd = () => {
+                const s = App.UI.imageViewerState;
+                if (s.isDragging || s.isResizing) {
                     container.classList.remove('interacting');
                 }
-                App.UI.imageViewerState.isDragging = false;
-                App.UI.imageViewerState.isResizing = false;
-                App.UI.imageViewerState.isImagePanning = false;
+                s.isDragging = false;
+                s.isResizing = false;
+                s.isImagePanning = false;
+                s.isPinching = false;
                 container.style.cursor = 'grab';
-            });
+            };
+
+            window.addEventListener('mouseup', handleEnd);
+            window.addEventListener('touchend', handleEnd);
 
             // --- ZOOM WHEEL ---
             container.addEventListener('wheel', (e) => {
