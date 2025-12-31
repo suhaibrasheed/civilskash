@@ -2543,6 +2543,30 @@ const App = {
                 ? 'style="-webkit-line-clamp: unset; line-clamp: unset; max-height: none; display: block;"'
                 : '';
 
+            // --- DATE FORMATTING ---
+            // Goal: Show "Month Year" (e.g. "Dec 2025") to keep content looking fresh longer.
+            let displayDate = item.date || 'Recent';
+            if (item.date && item.date !== 'Recent') {
+                try {
+                    // 1. Try simple split for hardcoded "d MMM yy" format first
+                    const parts = item.date.split(' ');
+                    if (parts.length === 3) {
+                        let month = parts[1];
+                        let year = parts[2];
+                        if (year.length === 2) year = '20' + year;
+                        displayDate = `${month} ${year}`;
+                    } else {
+                        // 2. Fallback to standard Date parsing
+                        const d = new Date(item.date);
+                        if (!isNaN(d.getTime())) {
+                            displayDate = d.toLocaleString('default', { month: 'short', year: 'numeric' });
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Date formatting error', e);
+                }
+            }
+
             return `
                 <article class="news-card ${hasImg ? '' : 'text-only'}" id="${item.id}" data-idx="${globalIdx}"
                         ondblclick="App.Actions.triggerHeartAnimation('${item.id}')"
@@ -2561,7 +2585,7 @@ const App = {
                         <div class="card-body">
                             <div class="meta-row">
                                 <span class="${badgeClass}" onclick="event.stopPropagation(); App.Actions.setCategory('${item.category}')">${item.category}</span>
-                                <span class="date">${item.date || 'Recent'}</span>
+                                <span class="date">${displayDate}</span>
                             </div>
                             <h2>${finalTitle}</h2>
                             <p class="summary-box" ${summaryStyle}>${finalSummary}</p> </div>
