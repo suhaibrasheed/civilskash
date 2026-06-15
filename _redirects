@@ -1,9 +1,8 @@
-# 1. Redirect the main current affairs landing entry point
-/index.html            /currentaffairs/ 301
 
-# 2. Critical: Map the entire notes directory to preserve indexed sitemap links
+
+# 1. Critical: Map the entire notes directory to preserve indexed sitemap links
 /notes/*               /currentaffairs/notes/:splat 301
 
-# 3. Static asset fallbacks for cached user sessions
+# 2. Static asset fallbacks for cached user sessions
 /app.js                /currentaffairs/app.js 301
 /style.css             /currentaffairs/style.css 301
