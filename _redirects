@@ -3,6 +3,4 @@
 # 1. Critical: Map the entire notes directory to preserve indexed sitemap links
 /notes/*               /currentaffairs/notes/:splat 301
 
-# 2. Static asset fallbacks for cached user sessions
-/app.js                /currentaffairs/app.js 301
-/style.css             /currentaffairs/style.css 301
+
