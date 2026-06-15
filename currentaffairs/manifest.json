@@ -1,0 +1,66 @@
+{
+  "name": "CivilsKash Current Affairs",
+  "short_name": "CivilsKash",
+  "description": "The ultimate tool for Civil Services preparation. Master Current Affaris & GK with smart flashcards.",
+  "id": "/currentaffairs/",
+  "start_url": "/currentaffairs/index.html",
+  "scope": "/currentaffairs/",
+  "display": "standalone",
+  "lang": "en-US",
+  "background_color": "#e7d7b7",
+  "theme_color": "#e7d7b7",
+  "orientation": "portrait",
+  "categories": ["education", "productivity", "news"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screen-mobile-1.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screen-desktop-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Quiz",
+      "url": "./index.html?mode=quiz",
+      "description": "Jump straight into your daily revision test",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",  
+    "params": {
+      "title": "share_title",
+      "text": "share_text",
+      "url": "share_url"
+    }
+  }
+}

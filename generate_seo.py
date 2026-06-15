@@ -10,7 +10,7 @@ from datetime import datetime
 # --- CONFIGURATION ---
 DATA_URL = "https://script.google.com/macros/s/AKfycbxK7nCpv9ERmwbxQeoMKqyADLxgOLimbNMQG5hddgOO-yHx_o5Izt3ZUDDq31ahWAJp/exec"
 BASE_URL = "https://civilskash.in"
-OUTPUT_DIR = "notes"
+OUTPUT_DIR = "currentaffairs/notes"
 
 # 1. HARDCODED DATA (Verified Complete from app.js)
 HARDCODED_DATA = [
@@ -298,7 +298,7 @@ def generate_site():
         
         folder_path = f"{OUTPUT_DIR}/{unique_id}"
         file_path = f"{folder_path}/index.html"
-        page_url = f"{BASE_URL}/notes/{unique_id}/"
+        page_url = f"{BASE_URL}/currentaffairs/notes/{unique_id}/"
         
         # 1. PREPARE METADATA
         title = item.get('title', 'Untitled Note')
