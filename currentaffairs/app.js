@@ -3164,7 +3164,7 @@ const App = {
             }, { passive: true });
 
             // 2. RESTORE PREFERENCES
-            let savedTheme = await this.DB.get('settings', 'themeName') || 'sepia';
+            let savedTheme = await this.DB.get('settings', 'themeName') || 'dark';
             await App.Actions.setTheme(savedTheme);
             let savedLayout = await this.DB.get('settings', 'desktopLayout') || 'paper';
             App.State.desktopLayout = savedLayout;

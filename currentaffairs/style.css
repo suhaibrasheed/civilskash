@@ -19,36 +19,35 @@
 
 /* DARK THEME */
 :root[data-theme="dark"] {
-    --bg-body: #09090b;
-    --bg-card: #18181b;
-    --bg-modal: #18181b;
-    --bg-overlay: #09090b;
-    --text-main: #f4f4f5;
-    --text-muted: #c5c5d1;
-    --primary: #fbbf24;
-    --primary-dim: rgba(251, 191, 36, 0.15);
-    --highlight-bg: rgba(251, 191, 36, 0.15);
-    --highlight-bold-text: #eac587;
-    --chip-active: #fbbf24;
-    --border-glass: rgba(255, 255, 255, 0.08);
-    --bg-glass: rgba(9, 9, 11, 0.85);
-    --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --shadow-hover: 0 10px 30px rgba(0, 0, 0, 0.6);
-    --highlight-bg: rgba(45, 212, 191, 0.15);
-    --cloze-bg: rgba(255, 255, 255, 0.1);
-    --cloze-border: #52525b;
-    --quiz-bg: #121214;
-    --quiz-mask: #27272a;
-    --gradient-text-card: radial-gradient(circle at 0% 100%, #1e1b4b 0%, #18181b 50%),
-        radial-gradient(circle at 100% 0%, #0f766e 0%, #18181b 50%);
-    --scroll-track: #27272a;
-    --scroll-thumb: #52525b;
-    --chip-bg: #27272a;
-    --chip-active-text: #000;
-    --toolbar-bg: rgba(24, 24, 27, 0.75);
-    --toolbar-border: rgba(255, 255, 255, 0.1);
-    --toolbar-text: rgba(255, 255, 255, 0.8);
-    --toolbar-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    --bg-body: #07070A;
+    --bg-card: rgba(14, 14, 22, 0.70);
+    --bg-modal: #0C0C12;
+    --bg-overlay: #07070A;
+    --text-main: #EDEAE2;
+    --text-muted: #9895A5;
+    --primary: #F5A623;
+    --primary-dim: rgba(245, 166, 35, 0.16);
+    --highlight-bg: rgba(245, 166, 35, 0.15);
+    --highlight-bold-text: #FFBF4D;
+    --chip-active: #F5A623;
+    --border-glass: rgba(255, 255, 255, 0.06);
+    --bg-glass: rgba(7, 7, 10, 0.85);
+    --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.55);
+    --shadow-hover: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(245, 166, 35, 0.08);
+    --cloze-bg: rgba(255, 255, 255, 0.06);
+    --cloze-border: rgba(245, 166, 35, 0.35);
+    --quiz-bg: #0C0C12;
+    --quiz-mask: #111119;
+    --gradient-text-card: radial-gradient(circle at 0% 100%, rgba(155, 109, 255, 0.08) 0%, rgba(14, 14, 22, 0.8) 50%),
+        radial-gradient(circle at 100% 0%, rgba(245, 166, 35, 0.06) 0%, rgba(14, 14, 22, 0.8) 50%);
+    --scroll-track: #0C0C12;
+    --scroll-thumb: rgba(255, 255, 255, 0.15);
+    --chip-bg: rgba(255, 255, 255, 0.04);
+    --chip-active-text: #07070A;
+    --toolbar-bg: rgba(12, 12, 18, 0.80);
+    --toolbar-border: rgba(255, 255, 255, 0.075);
+    --toolbar-text: #EDEAE2;
+    --toolbar-shadow: 0 12px 40px rgba(0, 0, 0, 0.50);
 }
 
 /* LIGHT THEME */
